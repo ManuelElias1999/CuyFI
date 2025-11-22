@@ -147,25 +147,10 @@ contract DeployHub is Script {
             functionSelectors: swapSelectors
         });
 
-        // Execute diamond cut
+        // 4. Execute diamond cut (no initialization in script to avoid stack issues)
+        console.log("\n4. Adding facets to Diamond...");
         diamond.diamondCut(cuts, address(0), "");
         console.log("Facets added successfully");
-
-        // 4. Initialize Vault
-        console.log("\n4. Initializing Vault...");
-        bytes memory initData = abi.encode(
-            "BotVault USDT",                          // name
-            "bvUSDT",                                  // symbol
-            ArbitrumHubConfig.USDT_ARBITRUM,          // asset
-            deployer,                                  // feeRecipient
-            uint96(500),                               // fee (5%)
-            deployer,                                  // owner
-            deployer,                                  // agent (for now, same as owner)
-            address(0)                                 // composer (will set later)
-        );
-
-        BotVaultCoreFacet(address(diamond)).initialize(initData);
-        console.log("Vault initialized");
 
         // 5. Deploy Composer (needs vault address first)
         console.log("\n5. Deploying Composer...");
@@ -206,8 +191,9 @@ contract DeployHub is Script {
         console.log("SwapFacet:", address(swapFacet));
         console.log("========================================");
         console.log("\nNext steps:");
-        console.log("1. Deploy ShareOFT via LayerZero");
-        console.log("2. Run DeployComposer.s.sol with ShareOFT address");
+        console.log("1. Initialize vault with:");
+        console.log("   cast send", address(diamond), "\"initialize(bytes)\" <encoded_data> --rpc-url $ARBITRUM_RPC_URL --private-key $PRIVATE_KEY");
+        console.log("2. Deploy ShareOFT via LayerZero");
         console.log("3. Deploy protocol adapters (Pendle, Aave, etc.)");
         console.log("4. Deploy spokes on other chains");
     }

@@ -94,25 +94,10 @@ contract DeploySpoke is Script {
             functionSelectors: swapSelectors
         });
 
-        // Execute diamond cut
+        // 4. Execute diamond cut (no initialization in script to avoid stack issues)
+        console.log("\n4. Adding facets to Diamond...");
         diamond.diamondCut(cuts, address(0), "");
         console.log("Facets added successfully");
-
-        // 4. Initialize Vault
-        console.log("\n4. Initializing Vault...");
-        bytes memory initData = abi.encode(
-            "BotVault USDT Polygon",                  // name
-            "bvUSDT-POLY",                             // symbol
-            PolygonSpokeConfig.USDT_POLYGON,          // asset
-            deployer,                                  // feeRecipient
-            uint96(500),                               // fee (5%)
-            deployer,                                  // owner
-            deployer,                                  // agent (for now, same as owner)
-            address(0)                                 // composer (spoke doesn't use composer)
-        );
-
-        BotVaultCoreFacet(address(diamond)).initialize(initData);
-        console.log("Vault initialized");
 
         vm.stopBroadcast();
 
