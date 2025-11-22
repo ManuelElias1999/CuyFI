@@ -7,7 +7,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 
 import {BotVaultLib} from "../libraries/BotVaultLib.sol";
 import {IBotYield} from "../interfaces/IBotYield.sol";
-import {IProtocolAdapter} from "../../interfaces/IProtocolAdapter.sol";
+import {IProtocolAdapter} from "../interfaces/IProtocolAdapter.sol";
 
 /**
  * @title BotYieldFacet

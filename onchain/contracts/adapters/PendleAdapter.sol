@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import {IProtocolAdapter} from "../../interfaces/IProtocolAdapter.sol";
-import {IStandardizedYield} from "../../interfaces/external/pendle/IStandardizedYield.sol";
-import {IPrincipalToken} from "../../interfaces/external/pendle/IPrincipalToken.sol";
-import {IPYieldToken} from "../../interfaces/external/pendle/IPYieldToken.sol";
-import {IPMarket} from "../../interfaces/external/pendle/IPMarket.sol";
-import {IPendleRouter} from "../../interfaces/external/pendle/IPendleRouter.sol";
+import {IProtocolAdapter} from "../interfaces/IProtocolAdapter.sol";
+import {IStandardizedYield} from "../interfaces/external/pendle/IStandardizedYield.sol";
+import {IPrincipalToken} from "../interfaces/external/pendle/IPrincipalToken.sol";
+import {IPYieldToken} from "../interfaces/external/pendle/IPYieldToken.sol";
+import {IPMarket} from "../interfaces/external/pendle/IPMarket.sol";
+import {IPendleRouter} from "../interfaces/external/pendle/IPendleRouter.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 

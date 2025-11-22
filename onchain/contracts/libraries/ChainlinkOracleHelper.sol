@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import {IAggregatorV2V3Interface} from "../../interfaces/Chainlink/IAggregatorV2V3Interface.sol";
+import {IAggregatorV2V3Interface} from "../interfaces/Chainlink/IAggregatorV2V3Interface.sol";
 
 /**
  * @title ChainlinkOracleHelper
