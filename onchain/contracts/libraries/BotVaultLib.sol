@@ -69,10 +69,19 @@ library BotVaultLib {
         address owner;
         address agent; // Bot address that executes strategies
 
+        // ============ ERC20 Storage ============
+        string name;
+        string symbol;
+        uint8 decimals;
+        uint256 totalSupply;
+        mapping(address => uint256) balances;
+        mapping(address => mapping(address => uint256)) allowances;
+
         // ============ ERC4626 Core ============
         address asset; // Primary asset (e.g., USDC)
         address feeRecipient;
         uint96 fee; // Performance fee in basis points
+        bool initialized; // Track if vault has been initialized
 
         // ============ Cross-Chain Tracking (Simplified) ============
         // deploymentId => CrossChainDeployment

@@ -53,6 +53,11 @@ interface IBotVaultCore is IERC4626 {
     function getFee() external view returns (uint96);
 
     /**
+     * @notice Get vault owner
+     */
+    function getOwner() external view returns (address);
+
+    /**
      * @notice Initialize the vault
      */
     function initialize(bytes calldata data) external;
