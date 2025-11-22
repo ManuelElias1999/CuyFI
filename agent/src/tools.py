@@ -3,6 +3,7 @@ from typing import Optional, Type
 from langchain_core.tools import BaseTool, StructuredTool
 from pydantic import BaseModel, Field
 import requests
+from .privy_client import PrivyClient
 
 
 class WebSearchInput(BaseModel):
@@ -13,6 +14,15 @@ class WebSearchInput(BaseModel):
 class CalculatorInput(BaseModel):
     """Input schema for calculator tool."""
     expression: str = Field(description="A mathematical expression to evaluate")
+
+
+class CreateEmbeddedWalletInput(BaseModel):
+    """Input schema for create embedded wallet tool."""
+    user_id: str = Field(description="The Privy user ID for which to create an embedded wallet")
+    wallet_type: Optional[str] = Field(
+        default="ethereum",
+        description="Type of wallet to create (default: 'ethereum')"
+    )
 
 
 def web_search(query: str) -> str:
@@ -28,6 +38,7 @@ def web_search(query: str) -> str:
     # This is a placeholder - you can integrate with a real search API
     # For example: Serper, Tavily, or DuckDuckGo
     try:
+        print('=> Query:', query)
         # Example: Using DuckDuckGo (you may want to use a proper API)
         response = requests.get(
             f"https://api.duckduckgo.com/?q={query}&format=json&no_html=1&skip_disambig=1",
@@ -64,6 +75,33 @@ def calculator(expression: str) -> str:
         return f"Error calculating: {str(e)}"
 
 
+def create_embedded_wallet(user_id: str, wallet_type: str = "ethereum") -> str:
+    """
+    Create an embedded wallet for a Privy user.
+    
+    Args:
+        user_id: The Privy user ID for which to create an embedded wallet
+        wallet_type: Type of wallet to create (default: "ethereum")
+        
+    Returns:
+        A string containing the wallet information or error message
+    """
+    try:
+        privy_client = PrivyClient()
+        result = privy_client.create_embedded_wallet(user_id, wallet_type)
+        
+        if result:
+            wallet_address = result.get("address", "N/A")
+            wallet_id = result.get("id", "N/A")
+            return f"Successfully created embedded wallet for user {user_id}. Wallet ID: {wallet_id}, Address: {wallet_address}"
+        else:
+            return f"Failed to create embedded wallet for user {user_id}"
+    except ValueError as e:
+        return f"Error: {str(e)}"
+    except Exception as e:
+        return f"Error creating embedded wallet: {str(e)}"
+
+
 def get_tools() -> list[BaseTool]:
     """
     Get a list of available tools for the agent.
@@ -83,6 +121,12 @@ def get_tools() -> list[BaseTool]:
             name="calculator",
             description="Evaluate a mathematical expression. Use this for any mathematical calculations.",
             args_schema=CalculatorInput,
+        ),
+        StructuredTool.from_function(
+            func=create_embedded_wallet,
+            name="create_embedded_wallet",
+            description="Create an embedded wallet for a Privy user. Use this when a user needs a new embedded wallet created. Requires a Privy user ID.",
+            args_schema=CreateEmbeddedWalletInput,
         ),
     ]
     
