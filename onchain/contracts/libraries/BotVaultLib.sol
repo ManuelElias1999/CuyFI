@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {ChainlinkOracleHelper} from "./ChainlinkOracleHelper.sol";
+import {IDiamondCut} from "../interfaces/IDiamondCut.sol";
 
 /**
  * @title BotVaultLib
@@ -61,6 +62,7 @@ library BotVaultLib {
         mapping(bytes4 => FacetAddressAndPosition) selectorToFacetAndPosition;
         mapping(address => FacetFunctionSelectors) facetFunctionSelectors;
         address[] facetAddresses;
+        bytes4[] selectors; // Array of all function selectors
         mapping(bytes4 => bool) supportedInterfaces;
 
         // ============ Access Control (Simplified) ============
@@ -213,6 +215,149 @@ library BotVaultLib {
         BotVaultStorage storage ds = botVaultStorage();
         for (uint256 i = 0; i < ds.activeDeployments.length; i++) {
             total += ds.deployments[ds.activeDeployments[i]].deployedAmount;
+        }
+    }
+
+    // ============ Diamond Cut Functions ============
+
+    /**
+     * @notice Add/replace/remove facet functions
+     * @param _diamondCut Array of facet cuts
+     * @param _init Address to execute initialization
+     * @param _calldata Initialization call data
+     */
+    function diamondCut(
+        IDiamondCut.FacetCut[] memory _diamondCut,
+        address _init,
+        bytes memory _calldata
+    ) internal {
+        for (uint256 facetIndex; facetIndex < _diamondCut.length; facetIndex++) {
+            bytes4[] memory functionSelectors = _diamondCut[facetIndex].functionSelectors;
+            address facetAddress = _diamondCut[facetIndex].facetAddress;
+
+            if (functionSelectors.length == 0) {
+                revert NoSelectorsInFacetToCut();
+            }
+
+            IDiamondCut.FacetCutAction action = _diamondCut[facetIndex].action;
+
+            if (action == IDiamondCut.FacetCutAction.Add) {
+                addFunctions(facetAddress, functionSelectors);
+            } else if (action == IDiamondCut.FacetCutAction.Replace) {
+                replaceFunctions(facetAddress, functionSelectors);
+            } else if (action == IDiamondCut.FacetCutAction.Remove) {
+                removeFunctions(facetAddress, functionSelectors);
+            } else {
+                revert IncorrectFacetCutAction(uint8(action));
+            }
+        }
+
+        emit IDiamondCut.DiamondCut(_diamondCut, _init, _calldata);
+
+        initializeDiamondCut(_init, _calldata);
+    }
+
+    function addFunctions(address _facetAddress, bytes4[] memory _functionSelectors) internal {
+        if (_facetAddress == address(0)) {
+            revert InvalidParameters();
+        }
+
+        BotVaultStorage storage ds = botVaultStorage();
+        uint16 selectorCount = uint16(ds.selectors.length);
+
+        for (uint256 selectorIndex; selectorIndex < _functionSelectors.length; selectorIndex++) {
+            bytes4 selector = _functionSelectors[selectorIndex];
+            address oldFacetAddress = ds.selectorToFacetAndPosition[selector].facetAddress;
+
+            if (oldFacetAddress != address(0)) {
+                revert FunctionAlreadyExists(oldFacetAddress, selector);
+            }
+
+            ds.selectorToFacetAndPosition[selector] = FacetAddressAndPosition({
+                facetAddress: _facetAddress,
+                functionSelectorPosition: selectorCount
+            });
+
+            ds.selectors.push(selector);
+            selectorCount++;
+        }
+    }
+
+    function replaceFunctions(address _facetAddress, bytes4[] memory _functionSelectors) internal {
+        if (_facetAddress == address(0)) {
+            revert InvalidParameters();
+        }
+
+        BotVaultStorage storage ds = botVaultStorage();
+
+        for (uint256 selectorIndex; selectorIndex < _functionSelectors.length; selectorIndex++) {
+            bytes4 selector = _functionSelectors[selectorIndex];
+            address oldFacetAddress = ds.selectorToFacetAndPosition[selector].facetAddress;
+
+            if (oldFacetAddress == address(0)) {
+                revert FunctionDoesNotExist();
+            }
+
+            // Can't replace immutable functions
+            if (oldFacetAddress == address(this)) {
+                revert InvalidParameters();
+            }
+
+            ds.selectorToFacetAndPosition[selector].facetAddress = _facetAddress;
+        }
+    }
+
+    function removeFunctions(address _facetAddress, bytes4[] memory _functionSelectors) internal {
+        if (_facetAddress != address(0)) {
+            revert InvalidParameters();
+        }
+
+        BotVaultStorage storage ds = botVaultStorage();
+        uint256 selectorCount = ds.selectors.length;
+
+        for (uint256 selectorIndex; selectorIndex < _functionSelectors.length; selectorIndex++) {
+            bytes4 selector = _functionSelectors[selectorIndex];
+            FacetAddressAndPosition memory oldFacetAddressAndPosition = ds.selectorToFacetAndPosition[selector];
+
+            if (oldFacetAddressAndPosition.facetAddress == address(0)) {
+                revert FunctionDoesNotExist();
+            }
+
+            // Can't remove immutable functions
+            if (oldFacetAddressAndPosition.facetAddress == address(this)) {
+                revert InvalidParameters();
+            }
+
+            // Replace selector with last selector, then delete last selector
+            selectorCount--;
+
+            if (oldFacetAddressAndPosition.functionSelectorPosition != selectorCount) {
+                bytes4 lastSelector = ds.selectors[selectorCount];
+                ds.selectors[oldFacetAddressAndPosition.functionSelectorPosition] = lastSelector;
+                ds.selectorToFacetAndPosition[lastSelector].functionSelectorPosition =
+                    oldFacetAddressAndPosition.functionSelectorPosition;
+            }
+
+            ds.selectors.pop();
+            delete ds.selectorToFacetAndPosition[selector];
+        }
+    }
+
+    function initializeDiamondCut(address _init, bytes memory _calldata) internal {
+        if (_init == address(0)) {
+            return;
+        }
+
+        (bool success, bytes memory error) = _init.delegatecall(_calldata);
+        if (!success) {
+            if (error.length > 0) {
+                assembly {
+                    let returndata_size := mload(error)
+                    revert(add(32, error), returndata_size)
+                }
+            } else {
+                revert InitializationFunctionReverted(_init, _calldata);
+            }
         }
     }
 }
