@@ -2,12 +2,12 @@
 pragma solidity 0.8.28;
 
 import "forge-std/Script.sol";
-import {BotVaultDiamond} from "../onchain/contracts/BotVaultDiamond.sol";
-import {BotVaultCoreFacet} from "../onchain/contracts/facets/BotVaultCoreFacet.sol";
-import {BotYieldFacet} from "../onchain/contracts/facets/BotYieldFacet.sol";
-import {BotSwapFacet} from "../onchain/contracts/facets/BotSwapFacet.sol";
-import {PolygonSpokeConfig} from "../onchain/contracts/config/PolygonSpokeConfig.sol";
-import {IDiamondCut} from "../onchain/contracts/interfaces/IDiamondCut.sol";
+import {BotVaultDiamond} from "../contracts/BotVaultDiamond.sol";
+import {BotVaultCoreFacet} from "../contracts/facets/BotVaultCoreFacet.sol";
+import {BotYieldFacet} from "../contracts/facets/BotYieldFacet.sol";
+import {BotSwapFacet} from "../contracts/facets/BotSwapFacet.sol";
+import {PolygonSpokeConfig} from "../contracts/config/PolygonSpokeConfig.sol";
+import {IDiamondCut} from "../contracts/interfaces/IDiamondCut.sol";
 
 /**
  * @title DeploySpoke
@@ -65,13 +65,15 @@ contract DeploySpoke is Script {
         });
 
         // Yield Facet
-        bytes4[] memory yieldSelectors = new bytes4[](6);
-        yieldSelectors[0] = BotYieldFacet.stakeInProtocol.selector;
-        yieldSelectors[1] = BotYieldFacet.requestUnstakeFromProtocol.selector;
-        yieldSelectors[2] = BotYieldFacet.finalizeUnstakeFromProtocol.selector;
+        bytes4[] memory yieldSelectors = new bytes4[](8);
+        yieldSelectors[0] = BotYieldFacet.depositToProtocol.selector;
+        yieldSelectors[1] = BotYieldFacet.requestWithdrawal.selector;
+        yieldSelectors[2] = BotYieldFacet.finalizeWithdrawal.selector;
         yieldSelectors[3] = BotYieldFacet.harvestRewards.selector;
-        yieldSelectors[4] = BotYieldFacet.addProtocolAdapter.selector;
-        yieldSelectors[5] = BotYieldFacet.removeProtocolAdapter.selector;
+        yieldSelectors[4] = BotYieldFacet.getPendingRewards.selector;
+        yieldSelectors[5] = BotYieldFacet.isWithdrawalClaimable.selector;
+        yieldSelectors[6] = BotYieldFacet.approveProtocol.selector;
+        yieldSelectors[7] = BotYieldFacet.isProtocolApproved.selector;
 
         cuts[1] = IDiamondCut.FacetCut({
             facetAddress: address(yieldFacet),
@@ -80,8 +82,11 @@ contract DeploySpoke is Script {
         });
 
         // Swap Facet
-        bytes4[] memory swapSelectors = new bytes4[](1);
-        swapSelectors[0] = BotSwapFacet.swapAssets.selector;
+        bytes4[] memory swapSelectors = new bytes4[](4);
+        swapSelectors[0] = BotSwapFacet.executeSwap.selector;
+        swapSelectors[1] = BotSwapFacet.executeBatchSwap.selector;
+        swapSelectors[2] = BotSwapFacet.approveDex.selector;
+        swapSelectors[3] = BotSwapFacet.isDexApproved.selector;
 
         cuts[2] = IDiamondCut.FacetCut({
             facetAddress: address(swapFacet),

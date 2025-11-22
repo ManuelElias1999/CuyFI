@@ -265,6 +265,14 @@ library BotVaultLib {
         BotVaultStorage storage ds = botVaultStorage();
         uint16 selectorCount = uint16(ds.selectors.length);
 
+        // Add facet address if it's new
+        uint256 facetPosition = ds.facetFunctionSelectors[_facetAddress].facetAddressPosition;
+        if (facetPosition == 0 && ds.facetFunctionSelectors[_facetAddress].functionSelectors.length == 0) {
+            ds.facetAddresses.push(_facetAddress);
+            facetPosition = ds.facetAddresses.length;
+            ds.facetFunctionSelectors[_facetAddress].facetAddressPosition = facetPosition;
+        }
+
         for (uint256 selectorIndex; selectorIndex < _functionSelectors.length; selectorIndex++) {
             bytes4 selector = _functionSelectors[selectorIndex];
             address oldFacetAddress = ds.selectorToFacetAndPosition[selector].facetAddress;
@@ -279,6 +287,7 @@ library BotVaultLib {
             });
 
             ds.selectors.push(selector);
+            ds.facetFunctionSelectors[_facetAddress].functionSelectors.push(selector);
             selectorCount++;
         }
     }

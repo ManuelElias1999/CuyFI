@@ -2,15 +2,17 @@
 pragma solidity 0.8.28;
 
 import "forge-std/Script.sol";
-import {BotVaultDiamond} from "../onchain/contracts/BotVaultDiamond.sol";
-import {BotVaultCoreFacet} from "../onchain/contracts/facets/BotVaultCoreFacet.sol";
-import {BotStrategyFacet} from "../onchain/contracts/facets/BotStrategyFacet.sol";
-import {BotYieldFacet} from "../onchain/contracts/facets/BotYieldFacet.sol";
-import {BotSwapFacet} from "../onchain/contracts/facets/BotSwapFacet.sol";
-import {BotVaultComposer} from "../onchain/contracts/BotVaultComposer.sol";
-import {PendleAdapter} from "../onchain/contracts/adapters/PendleAdapter.sol";
-import {ArbitrumHubConfig} from "../onchain/contracts/config/ArbitrumHubConfig.sol";
-import {IDiamondCut} from "../onchain/contracts/interfaces/IDiamondCut.sol";
+import {BotVaultDiamond} from "../contracts/BotVaultDiamond.sol";
+import {BotVaultCoreFacet} from "../contracts/facets/BotVaultCoreFacet.sol";
+import {BotStrategyFacet} from "../contracts/facets/BotStrategyFacet.sol";
+import {BotYieldFacet} from "../contracts/facets/BotYieldFacet.sol";
+import {BotSwapFacet} from "../contracts/facets/BotSwapFacet.sol";
+import {DiamondLoupeFacet} from "../contracts/facets/DiamondLoupeFacet.sol";
+import {DiamondCutFacet} from "../contracts/facets/DiamondCutFacet.sol";
+import {BotVaultComposer} from "../contracts/BotVaultComposer.sol";
+import {PendleAdapter} from "../contracts/adapters/PendleAdapter.sol";
+import {ArbitrumHubConfig} from "../contracts/config/ArbitrumHubConfig.sol";
+import {IDiamondCut} from "../contracts/interfaces/IDiamondCut.sol";
 
 /**
  * @title DeployHub
@@ -35,6 +37,12 @@ contract DeployHub is Script {
 
         // 2. Deploy Facets
         console.log("\n2. Deploying Facets...");
+        DiamondLoupeFacet loupeFacet = new DiamondLoupeFacet();
+        console.log("DiamondLoupeFacet:", address(loupeFacet));
+
+        DiamondCutFacet cutFacet = new DiamondCutFacet();
+        console.log("DiamondCutFacet:", address(cutFacet));
+
         BotVaultCoreFacet coreFacet = new BotVaultCoreFacet();
         console.log("CoreFacet:", address(coreFacet));
 
@@ -49,7 +57,31 @@ contract DeployHub is Script {
 
         // 3. Prepare Diamond Cut
         console.log("\n3. Adding facets to Diamond...");
-        IDiamondCut.FacetCut[] memory cuts = new IDiamondCut.FacetCut[](4);
+        IDiamondCut.FacetCut[] memory cuts = new IDiamondCut.FacetCut[](6);
+
+        // Diamond Loupe Facet
+        bytes4[] memory loupeSelectors = new bytes4[](5);
+        loupeSelectors[0] = DiamondLoupeFacet.facets.selector;
+        loupeSelectors[1] = DiamondLoupeFacet.facetFunctionSelectors.selector;
+        loupeSelectors[2] = DiamondLoupeFacet.facetAddresses.selector;
+        loupeSelectors[3] = DiamondLoupeFacet.facetAddress.selector;
+        loupeSelectors[4] = DiamondLoupeFacet.supportsInterface.selector;
+
+        cuts[0] = IDiamondCut.FacetCut({
+            facetAddress: address(loupeFacet),
+            action: IDiamondCut.FacetCutAction.Add,
+            functionSelectors: loupeSelectors
+        });
+
+        // Diamond Cut Facet
+        bytes4[] memory cutSelectors = new bytes4[](1);
+        cutSelectors[0] = DiamondCutFacet.diamondCut.selector;
+
+        cuts[1] = IDiamondCut.FacetCut({
+            facetAddress: address(cutFacet),
+            action: IDiamondCut.FacetCutAction.Add,
+            functionSelectors: cutSelectors
+        });
 
         // Core Facet
         bytes4[] memory coreSelectors = new bytes4[](9);
@@ -63,44 +95,53 @@ contract DeployHub is Script {
         coreSelectors[7] = BotVaultCoreFacet.setFee.selector;
         coreSelectors[8] = BotVaultCoreFacet.totalAssets.selector;
 
-        cuts[0] = IDiamondCut.FacetCut({
+        cuts[2] = IDiamondCut.FacetCut({
             facetAddress: address(coreFacet),
             action: IDiamondCut.FacetCutAction.Add,
             functionSelectors: coreSelectors
         });
 
         // Strategy Facet
-        bytes4[] memory strategySelectors = new bytes4[](3);
+        bytes4[] memory strategySelectors = new bytes4[](7);
         strategySelectors[0] = BotStrategyFacet.deployToChain.selector;
-        strategySelectors[1] = BotStrategyFacet.receiveFromChain.selector;
-        strategySelectors[2] = BotStrategyFacet.approveOFT.selector;
+        strategySelectors[1] = BotStrategyFacet.withdrawFromChain.selector;
+        strategySelectors[2] = BotStrategyFacet.updateDeploymentAmount.selector;
+        strategySelectors[3] = BotStrategyFacet.getDeployment.selector;
+        strategySelectors[4] = BotStrategyFacet.getActiveDeployments.selector;
+        strategySelectors[5] = BotStrategyFacet.getTotalDeployedOnChain.selector;
+        strategySelectors[6] = BotStrategyFacet.approveOFT.selector;
 
-        cuts[1] = IDiamondCut.FacetCut({
+        cuts[3] = IDiamondCut.FacetCut({
             facetAddress: address(strategyFacet),
             action: IDiamondCut.FacetCutAction.Add,
             functionSelectors: strategySelectors
         });
 
         // Yield Facet
-        bytes4[] memory yieldSelectors = new bytes4[](6);
-        yieldSelectors[0] = BotYieldFacet.stakeInProtocol.selector;
-        yieldSelectors[1] = BotYieldFacet.requestUnstakeFromProtocol.selector;
-        yieldSelectors[2] = BotYieldFacet.finalizeUnstakeFromProtocol.selector;
+        bytes4[] memory yieldSelectors = new bytes4[](8);
+        yieldSelectors[0] = BotYieldFacet.depositToProtocol.selector;
+        yieldSelectors[1] = BotYieldFacet.requestWithdrawal.selector;
+        yieldSelectors[2] = BotYieldFacet.finalizeWithdrawal.selector;
         yieldSelectors[3] = BotYieldFacet.harvestRewards.selector;
-        yieldSelectors[4] = BotYieldFacet.addProtocolAdapter.selector;
-        yieldSelectors[5] = BotYieldFacet.removeProtocolAdapter.selector;
+        yieldSelectors[4] = BotYieldFacet.getPendingRewards.selector;
+        yieldSelectors[5] = BotYieldFacet.isWithdrawalClaimable.selector;
+        yieldSelectors[6] = BotYieldFacet.approveProtocol.selector;
+        yieldSelectors[7] = BotYieldFacet.isProtocolApproved.selector;
 
-        cuts[2] = IDiamondCut.FacetCut({
+        cuts[4] = IDiamondCut.FacetCut({
             facetAddress: address(yieldFacet),
             action: IDiamondCut.FacetCutAction.Add,
             functionSelectors: yieldSelectors
         });
 
         // Swap Facet
-        bytes4[] memory swapSelectors = new bytes4[](1);
-        swapSelectors[0] = BotSwapFacet.swapAssets.selector;
+        bytes4[] memory swapSelectors = new bytes4[](4);
+        swapSelectors[0] = BotSwapFacet.executeSwap.selector;
+        swapSelectors[1] = BotSwapFacet.executeBatchSwap.selector;
+        swapSelectors[2] = BotSwapFacet.approveDex.selector;
+        swapSelectors[3] = BotSwapFacet.isDexApproved.selector;
 
-        cuts[3] = IDiamondCut.FacetCut({
+        cuts[5] = IDiamondCut.FacetCut({
             facetAddress: address(swapFacet),
             action: IDiamondCut.FacetCutAction.Add,
             functionSelectors: swapSelectors
