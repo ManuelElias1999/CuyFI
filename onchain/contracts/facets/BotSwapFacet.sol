@@ -10,8 +10,8 @@ import {IBotSwap} from "../interfaces/IBotSwap.sol";
 
 /**
  * @title BotSwapFacet
- * @notice Generic DEX aggregator for swaps (simplified from DexAggregatorFacet)
- * @dev Supports any DEX: Uniswap, 1inch, Paraswap, 0x, etc.
+ * @notice Generic DEX aggregator for swaps
+ * @dev Supports any DEX, maybe.
  */
 contract BotSwapFacet is IBotSwap, ReentrancyGuard {
     using SafeERC20 for IERC20;
