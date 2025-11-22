@@ -3,4 +3,6 @@ pragma solidity ^0.8.0;
 
 interface IPrincipalToken {
     function SY() external view returns (address);
+    function YT() external view returns (address);
+    function isExpired() external view returns (bool);
 }

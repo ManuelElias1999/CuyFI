@@ -31,16 +31,16 @@ library ArbitrumHubConfig {
     // ============ USDT OFT Adapters ============
 
     /// @notice USDT OFT Adapter on Arbitrum (hub)
-    address internal constant USDT_OFT_ARBITRUM = 0x14e4a1b13bf7f943c8ff7c51fb60fa964a298d92;
+    address internal constant USDT_OFT_ARBITRUM = 0x14E4A1B13bf7F943c8ff7C51fb60FA964A298D92;
 
     /// @notice USDT OFT Adapter on Polygon
-    address internal constant USDT_OFT_POLYGON = 0x6ba10300f0dc58b7a1e4c0e41f5dabb7d7829e13;
+    address internal constant USDT_OFT_POLYGON = 0x6BA10300f0DC58B7a1e4c0e41f5daBb7D7829e13;
 
     /// @notice USDT OFT Adapter on Ethereum
-    address internal constant USDT_OFT_ETHEREUM = 0x6c96de32cea08842dcc4058c14d3aaad7fa41dee;
+    address internal constant USDT_OFT_ETHEREUM = 0x6C96dE32CEa08842dcc4058c14d3aaAD7Fa41dee;
 
     /// @notice USDT OFT Adapter on Optimism
-    address internal constant USDT_OFT_OPTIMISM = 0xf03b4d9ac1d5d1e7c4cef54c2a313b9fe051a0ad;
+    address internal constant USDT_OFT_OPTIMISM = 0xF03b4d9AC1D5d1E7c4cEf54C2A313b9fe051A0aD;
 
     // ============ LayerZero Endpoint ============
 

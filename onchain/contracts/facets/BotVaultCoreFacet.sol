@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -36,7 +37,8 @@ contract BotVaultCoreFacet is ERC4626Upgradeable, PausableUpgradeable, IBotVault
         _;
     }
 
-    modifier whenNotPaused() override {
+    // Custom pause check using our storage
+    modifier whenVaultNotPaused() {
         if (BotVaultLib.botVaultStorage().paused) revert VaultPaused();
         _;
     }
@@ -128,8 +130,8 @@ contract BotVaultCoreFacet is ERC4626Upgradeable, PausableUpgradeable, IBotVault
      */
     function deposit(uint256 assets, address receiver)
         public
-        override(ERC4626Upgradeable, IBotVaultCore)
-        whenNotPaused
+        override(ERC4626Upgradeable, IERC4626)
+        whenVaultNotPaused
         returns (uint256 shares)
     {
         shares = super.deposit(assets, receiver);
@@ -142,8 +144,8 @@ contract BotVaultCoreFacet is ERC4626Upgradeable, PausableUpgradeable, IBotVault
      */
     function mint(uint256 shares, address receiver)
         public
-        override(ERC4626Upgradeable, IBotVaultCore)
-        whenNotPaused
+        override(ERC4626Upgradeable, IERC4626)
+        whenVaultNotPaused
         returns (uint256 assets)
     {
         assets = super.mint(shares, receiver);
@@ -156,8 +158,8 @@ contract BotVaultCoreFacet is ERC4626Upgradeable, PausableUpgradeable, IBotVault
      */
     function withdraw(uint256 assets, address receiver, address owner)
         public
-        override(ERC4626Upgradeable, IBotVaultCore)
-        whenNotPaused
+        override(ERC4626Upgradeable, IERC4626)
+        whenVaultNotPaused
         returns (uint256 shares)
     {
         shares = super.withdraw(assets, receiver, owner);
@@ -170,8 +172,8 @@ contract BotVaultCoreFacet is ERC4626Upgradeable, PausableUpgradeable, IBotVault
      */
     function redeem(uint256 shares, address receiver, address owner)
         public
-        override(ERC4626Upgradeable, IBotVaultCore)
-        whenNotPaused
+        override(ERC4626Upgradeable, IERC4626)
+        whenVaultNotPaused
         returns (uint256 assets)
     {
         assets = super.redeem(shares, receiver, owner);

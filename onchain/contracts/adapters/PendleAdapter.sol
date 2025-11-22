@@ -98,7 +98,7 @@ contract PendleAdapter is IProtocolAdapter {
      * @return receipts Amount of PT tokens received
      * @dev Flow: depositToken → SY (mint) → PT (swap via router)
      */
-    function stake(uint256 amount, bytes calldata) external returns (uint256 receipts) {
+    function stake(uint256 amount, bytes calldata) public returns (uint256 receipts) {
         // Transfer deposit token from vault to adapter
         IERC20(depositToken).safeTransferFrom(msg.sender, address(this), amount);
 
@@ -224,7 +224,7 @@ contract PendleAdapter is IProtocolAdapter {
      * @return Estimated deposit token amount
      * @dev Useful for calculating yields and withdrawal amounts
      */
-    function getDepositTokenForReceipts(uint256 receiptAmount) external view returns (uint256) {
+    function getDepositTokenForReceipts(uint256 receiptAmount) public view returns (uint256) {
         if (pt.isExpired()) {
             // After expiry: 1:1 redemption via SY
             return sy.previewRedeem(depositToken, receiptAmount);
@@ -252,6 +252,67 @@ contract PendleAdapter is IProtocolAdapter {
      */
     function getProtocolName() external pure returns (string memory) {
         return "Pendle";
+    }
+
+    // ============ IProtocolAdapter Implementation ============
+
+    /**
+     * @notice Deposit asset into protocol (IProtocolAdapter interface)
+     * @param asset Asset to deposit (must match depositToken)
+     * @param amount Amount to deposit
+     * @return shares Amount of PT tokens received
+     */
+    function deposit(address asset, uint256 amount) external returns (uint256 shares) {
+        require(asset == depositToken, "Invalid asset");
+        return this.stake(amount, new bytes(0));
+    }
+
+    /**
+     * @notice Withdraw from protocol (IProtocolAdapter interface)
+     * @param shares Amount of PT tokens to withdraw
+     * @return amount Amount of deposit tokens returned
+     */
+    function withdraw(uint256 shares) external returns (uint256 amount) {
+        // Transfer PT from sender
+        IERC20(receiptToken).safeTransferFrom(msg.sender, address(this), shares);
+
+        // Swap PT for SY
+        IERC20(receiptToken).forceApprove(router, shares);
+
+        IPendleRouter.ApproxParams memory approx = IPendleRouter.ApproxParams({
+            guessMin: 0,
+            guessMax: type(uint256).max,
+            guessOffchain: 0,
+            maxIteration: 256,
+            eps: 1e14
+        });
+
+        IPendleRouter.LimitOrderData memory limit = IPendleRouter.LimitOrderData({
+            limitRouter: address(0),
+            epsSkipMarket: 0,
+            normalFills: new IPendleRouter.FillOrderParams[](0),
+            flashFills: new IPendleRouter.FillOrderParams[](0),
+            optData: ""
+        });
+
+        // Swap PT for SY
+        (uint256 syAmount,) = IPendleRouter(router).swapExactPtForSy(address(this), market, shares, 0, limit);
+
+        // Redeem SY for deposit token
+        amount = sy.redeem(msg.sender, syAmount, depositToken, 0, false);
+
+        return amount;
+    }
+
+    /**
+     * @notice Get total value in protocol (IProtocolAdapter interface)
+     * @return Total value in deposit token terms
+     */
+    function totalValue() external view returns (uint256) {
+        uint256 ptBalance = IERC20(receiptToken).balanceOf(address(this));
+        if (ptBalance == 0) return 0;
+
+        return getDepositTokenForReceipts(ptBalance);
     }
 }
 

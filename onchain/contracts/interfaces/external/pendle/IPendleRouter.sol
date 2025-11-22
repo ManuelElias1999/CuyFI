@@ -85,4 +85,12 @@ interface IPendleRouter {
         ApproxParams calldata approx,
         LimitOrderData calldata limit
     ) external returns (uint256 netPtOut, uint256 netSyFee);
+
+    function swapExactPtForSy(
+        address receiver,
+        address market,
+        uint256 exactPtIn,
+        uint256 minSyOut,
+        LimitOrderData calldata limit
+    ) external returns (uint256 netSyOut, uint256 netSyFee);
 }
