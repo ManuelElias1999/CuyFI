@@ -2,7 +2,7 @@
 from typing import Optional
 import base64
 import requests
-from .config import Config
+from ..config import Config
 
 
 class PrivyClient:
