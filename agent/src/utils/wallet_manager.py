@@ -343,6 +343,282 @@ class WalletManager:
             'network': self.network
         }
 
+    def approve_token(
+        self,
+        token_address: str,
+        spender_address: str,
+        amount: Optional[float] = None,
+        decimals: int = 18,
+        gas_limit: int = 100000
+    ) -> Dict[str, Any]:
+        """
+        Aprobar gasto de tokens ERC-20
+
+        Args:
+            token_address: Dirección del contrato del token
+            spender_address: Dirección autorizada para gastar
+            amount: Cantidad a aprobar (None = máximo uint256)
+            decimals: Decimales del token (18 por defecto)
+            gas_limit: Límite de gas
+
+        Returns:
+            Dict con información de la transacción
+        """
+        token_address = Web3.to_checksum_address(token_address)
+        spender_address = Web3.to_checksum_address(spender_address)
+
+        # ABI para approve
+        erc20_abi = [
+            {
+                'constant': False,
+                'inputs': [
+                    {'name': '_spender', 'type': 'address'},
+                    {'name': '_value', 'type': 'uint256'}
+                ],
+                'name': 'approve',
+                'outputs': [{'name': '', 'type': 'bool'}],
+                'type': 'function'
+            },
+            {
+                'constant': True,
+                'inputs': [],
+                'name': 'symbol',
+                'outputs': [{'name': '', 'type': 'string'}],
+                'type': 'function'
+            }
+        ]
+
+        contract = self.w3.eth.contract(address=token_address, abi=erc20_abi)
+
+        # Obtener símbolo
+        try:
+            symbol = contract.functions.symbol().call()
+        except Exception:
+            symbol = 'TOKEN'
+
+        # Calcular cantidad
+        if amount is None:
+            # Máximo uint256
+            amount_units = 2**256 - 1
+            amount_str = "MAX"
+        else:
+            amount_units = int(amount * (10 ** decimals))
+            amount_str = str(amount)
+
+        print(f"\n📤 Preparando aprobación de {symbol}...")
+        print(f"   Token: {token_address}")
+        print(f"   Spender: {spender_address}")
+        print(f"   Monto: {amount_str} {symbol}")
+
+        # Preparar transacción
+        tx = contract.functions.approve(
+            spender_address,
+            amount_units
+        ).build_transaction({
+            'from': self.address,
+            'gas': gas_limit,
+            'gasPrice': self.w3.eth.gas_price,
+            'nonce': self.w3.eth.get_transaction_count(self.address),
+            'chainId': self.w3.eth.chain_id
+        })
+
+        # Firmar
+        signed_tx = self.account.sign_transaction(tx)
+
+        print(f"✍️  Transacción firmada")
+
+        # Enviar
+        tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+        tx_hash_hex = tx_hash.hex()
+
+        print(f"🚀 Transacción enviada: {tx_hash_hex}")
+        print(f"   Esperando confirmación...")
+
+        # Esperar confirmación
+        receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=300)
+
+        status = 'success' if receipt['status'] == 1 else 'failed'
+
+        print(f"✅ Transacción {status}")
+
+        return {
+            'tx_hash': tx_hash_hex,
+            'status': status,
+            'token': symbol,
+            'token_address': token_address,
+            'spender': spender_address,
+            'amount': amount_str,
+            'block_number': receipt['blockNumber'],
+            'gas_used': receipt['gasUsed'],
+            'explorer_url': self._get_explorer_url(tx_hash_hex)
+        }
+
+    def supply_to_aave(
+        self,
+        pool_address: str,
+        asset_address: str,
+        amount: float,
+        on_behalf_of: Optional[str] = None,
+        referral_code: int = 0,
+        decimals: int = 18,
+        gas_limit: int = 500000,
+        auto_approve: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Suministrar tokens a Aave V3 Pool
+
+        Args:
+            pool_address: Dirección del contrato Pool de Aave V3
+            asset_address: Dirección del token a suministrar
+            amount: Cantidad de tokens a suministrar
+            on_behalf_of: Dirección que recibirá los aTokens (None = wallet del backend)
+            referral_code: Código de referido (0 por defecto)
+            decimals: Decimales del token (18 por defecto)
+            gas_limit: Límite de gas
+            auto_approve: Si True, aprueba automáticamente el token antes de suministrar
+
+        Returns:
+            Dict con información de la transacción
+        """
+        pool_address = Web3.to_checksum_address(pool_address)
+        asset_address = Web3.to_checksum_address(asset_address)
+        on_behalf_of = Web3.to_checksum_address(on_behalf_of) if on_behalf_of else self.address
+
+        # ABI para la función supply de Aave V3 Pool
+        supply_abi = [
+            {
+                'inputs': [
+                    {'internalType': 'address', 'name': 'asset', 'type': 'address'},
+                    {'internalType': 'uint256', 'name': 'amount', 'type': 'uint256'},
+                    {'internalType': 'address', 'name': 'onBehalfOf', 'type': 'address'},
+                    {'internalType': 'uint16', 'name': 'referralCode', 'type': 'uint16'}
+                ],
+                'name': 'supply',
+                'outputs': [],
+                'stateMutability': 'nonpayable',
+                'type': 'function'
+            }
+        ]
+
+        # ABI para verificar balance y símbolo del token
+        erc20_abi = [
+            {
+                'constant': True,
+                'inputs': [{'name': '_owner', 'type': 'address'}],
+                'name': 'balanceOf',
+                'outputs': [{'name': 'balance', 'type': 'uint256'}],
+                'type': 'function'
+            },
+            {
+                'constant': True,
+                'inputs': [],
+                'name': 'symbol',
+                'outputs': [{'name': '', 'type': 'string'}],
+                'type': 'function'
+            },
+            {
+                'constant': True,
+                'inputs': [
+                    {'name': '_owner', 'type': 'address'},
+                    {'name': '_spender', 'type': 'address'}
+                ],
+                'name': 'allowance',
+                'outputs': [{'name': '', 'type': 'uint256'}],
+                'type': 'function'
+            }
+        ]
+
+        # Crear contratos
+        pool_contract = self.w3.eth.contract(address=pool_address, abi=supply_abi)
+        token_contract = self.w3.eth.contract(address=asset_address, abi=erc20_abi)
+
+        # Obtener símbolo del token
+        try:
+            symbol = token_contract.functions.symbol().call()
+        except Exception:
+            symbol = 'TOKEN'
+
+        # Verificar balance
+        balance = token_contract.functions.balanceOf(self.address).call()
+        balance_tokens = balance / (10 ** decimals)
+        amount_units = int(amount * (10 ** decimals))
+
+        if balance_tokens < amount:
+            raise ValueError(
+                f"Balance insuficiente de {symbol}. "
+                f"Tienes: {balance_tokens}, Necesitas: {amount}"
+            )
+
+        # Verificar y aprobar si es necesario
+        if auto_approve:
+            allowance = token_contract.functions.allowance(self.address, pool_address).call()
+            if allowance < amount_units:
+                print(f"\n⚠️  Aprobación insuficiente. Aprobando tokens...")
+                approve_result = self.approve_token(
+                    token_address=asset_address, # usdt0
+                    spender_address=pool_address, # aave
+                    amount=None,  # Aprobar máximo 10000
+                    decimals=decimals # none
+                )
+                if approve_result['status'] != 'success':
+                    raise ValueError(f"Error al aprobar tokens: {approve_result}")
+
+        print(f"\n📤 Preparando supply a Aave V3...")
+        print(f"   Pool: {pool_address}")
+        print(f"   Asset: {asset_address} ({symbol})")
+        print(f"   Cantidad: {amount} {symbol}")
+        print(f"   On Behalf Of: {on_behalf_of}")
+        print(f"   Referral Code: {referral_code}")
+
+        # Preparar transacción
+        tx = pool_contract.functions.supply(
+            asset_address, # usdt0
+            amount_units, # 0.1
+            on_behalf_of, # my wallet
+            referral_code # 0
+        ).build_transaction({
+            'from': self.address,
+            'gas': gas_limit,
+            'gasPrice': self.w3.eth.gas_price,
+            'nonce': self.w3.eth.get_transaction_count(self.address),
+            'chainId': self.w3.eth.chain_id
+        })
+
+        # Firmar
+        signed_tx = self.account.sign_transaction(tx)
+
+        print(f"✍️  Transacción firmada")
+
+        # Enviar
+        tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+        tx_hash_hex = tx_hash.hex()
+
+        print(f"🚀 Transacción enviada: {tx_hash_hex}")
+        print(f"   Esperando confirmación...")
+
+        # Esperar confirmación
+        receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=300)
+
+        status = 'success' if receipt['status'] == 1 else 'failed'
+
+        print(f"✅ Transacción {status}")
+        print(f"   Block: {receipt['blockNumber']}")
+        print(f"   Gas usado: {receipt['gasUsed']}")
+
+        return {
+            'tx_hash': tx_hash_hex,
+            'status': status,
+            'pool_address': pool_address,
+            'asset': symbol,
+            'asset_address': asset_address,
+            'amount': amount,
+            'on_behalf_of': on_behalf_of,
+            'referral_code': referral_code,
+            'block_number': receipt['blockNumber'],
+            'gas_used': receipt['gasUsed'],
+            'explorer_url': self._get_explorer_url(tx_hash_hex)
+        }
+
 
 # Función helper para crear wallet desde .env
 def create_wallet_from_env() -> WalletManager:

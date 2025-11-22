@@ -44,6 +44,28 @@ class GetBalanceInput(BaseModel):
     )
 
 
+class SupplyToAaveInput(BaseModel):
+    """Input schema for supply to Aave tool."""
+    asset_address: str = Field(description="The address of the token/asset to supply to Aave (e.g., USDC, USDT, WETH)")
+    amount: float = Field(description="The amount of the asset to supply (e.g., 100.0 for 100 USDC)")
+    pool_address: Optional[str] = Field(
+        default="0x794a61358D6845594F94dc1DB02A252b5b4814aD",
+        description="The Aave V3 Pool contract address (default: Polygon mainnet pool)"
+    )
+    on_behalf_of: Optional[str] = Field(
+        default=None,
+        description="The address that will receive the aTokens. If not provided, uses the backend wallet address."
+    )
+    referral_code: int = Field(
+        default=0,
+        description="Referral code for the operation (default: 0)"
+    )
+    decimals: int = Field(
+        default=18,
+        description="Number of decimals for the token (default: 18, use 6 for USDC/USDT)"
+    )
+
+
 def web_search(query: str) -> str:
     """
     Search the web for information about a given query.
@@ -254,6 +276,60 @@ def get_balance(address: Optional[str] = None) -> str:
         return f"Error getting balance: {str(e)}"
 
 
+def supply_to_aave(
+    asset_address: str,
+    amount: float,
+    pool_address: str = "0x794a61358D6845594F94dc1DB02A252b5b4814aD",
+    on_behalf_of: Optional[str] = None,
+    referral_code: int = 0,
+    decimals: int = 18
+) -> str:
+    """
+    Supply tokens to Aave V3 Pool on Polygon. This function will automatically approve the token spending if needed.
+    
+    Args:
+        asset_address: The address of the token/asset to supply (e.g., USDC, USDT, WETH)
+        amount: The amount of the asset to supply
+        pool_address: The Aave V3 Pool contract address (default: Polygon mainnet)
+        on_behalf_of: The address that will receive the aTokens (default: backend wallet)
+        referral_code: Referral code for the operation (default: 0)
+        decimals: Number of decimals for the token (default: 18, use 6 for USDC/USDT)
+        
+    Returns:
+        A string containing transaction information or error message
+    """
+    try:
+        wallet_manager = create_wallet_from_env()
+        
+        result = wallet_manager.supply_to_aave(
+            pool_address=pool_address,
+            asset_address=asset_address,
+            amount=amount,
+            on_behalf_of=on_behalf_of,
+            referral_code=referral_code,
+            decimals=decimals,
+            auto_approve=True
+        )
+        
+        if result['status'] == 'success':
+            return (
+                f"✅ Successfully supplied {result['amount']} {result['asset']} to Aave V3 Pool\n"
+                f"Transaction Hash: {result['tx_hash']}\n"
+                f"Pool Address: {result['pool_address']}\n"
+                f"Asset: {result['asset']} ({result['asset_address']})\n"
+                f"On Behalf Of: {result['on_behalf_of']}\n"
+                f"Block Number: {result['block_number']}\n"
+                f"Gas Used: {result['gas_used']}\n"
+                f"Explorer: {result['explorer_url']}"
+            )
+        else:
+            return f"❌ Transaction failed: {result}"
+    except ValueError as e:
+        return f"Error: {str(e)}"
+    except Exception as e:
+        return f"Error supplying to Aave: {str(e)}"
+
+
 def get_tools() -> list[BaseTool]:
     """
     Get a list of available tools for the agent.
@@ -291,6 +367,12 @@ def get_tools() -> list[BaseTool]:
             name="get_balance",
             description="Get the ETH balance of an Ethereum address using the wallet manager. Use this when you need to check the balance of a wallet address. If no address is provided, it will check the backend wallet balance.",
             args_schema=GetBalanceInput,
+        ),
+        StructuredTool.from_function(
+            func=supply_to_aave,
+            name="supply_to_aave",
+            description="Supply tokens to Aave V3 Pool on Polygon. This function automatically approves token spending if needed. Use this when a user wants to supply assets (like USDC, USDT, WETH) to Aave to earn interest. Requires the asset address, amount to supply, and optionally the pool address, recipient address, referral code, and token decimals. Default pool address is the Polygon mainnet Aave V3 Pool (0x794a61358D6845594F94dc1DB02A252b5b4814aD).",
+            args_schema=SupplyToAaveInput,
         ),
     ]
     
