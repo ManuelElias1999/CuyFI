@@ -1,5 +1,10 @@
 import hardhatToolboxViemPlugin from "@nomicfoundation/hardhat-toolbox-viem";
-import { configVariable, defineConfig } from "hardhat/config";
+import { defineConfig } from "hardhat/config";
+import * as dotenv from "dotenv";
+
+dotenv.config();
+
+const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
 
 export default defineConfig({
   plugins: [hardhatToolboxViemPlugin],
@@ -20,19 +25,25 @@ export default defineConfig({
     },
   },
   networks: {
-    hardhatMainnet: {
-      type: "edr-simulated",
-      chainType: "l1",
-    },
-    hardhatOp: {
-      type: "edr-simulated",
-      chainType: "op",
-    },
-    sepolia: {
+    // Hub network
+    arbitrumSepolia: {
       type: "http",
-      chainType: "l1",
-      url: configVariable("SEPOLIA_RPC_URL"),
-      accounts: [configVariable("SEPOLIA_PRIVATE_KEY")],
+      url: process.env.ARBITRUM_SEPOLIA_RPC_URL || "https://sepolia-rollup.arbitrum.io/rpc",
+      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
+      chainId: 421614,
+    },
+    // Spoke networks
+    optimismSepolia: {
+      type: "http",
+      url: process.env.OPTIMISM_SEPOLIA_RPC_URL || "https://sepolia.optimism.io",
+      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
+      chainId: 11155420,
+    },
+    baseSepolia: {
+      type: "http",
+      url: process.env.BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org",
+      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
+      chainId: 84532,
     },
   },
 });
