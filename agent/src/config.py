@@ -27,6 +27,10 @@ class Config:
     WEB3_RPC_URL: Optional[str] = os.getenv("WEB3_RPC_URL")
     CHAIN_ID: Optional[int] = int(os.getenv("CHAIN_ID", "1")) if os.getenv("CHAIN_ID") else None
     
+    # Telegram Configuration
+    TELEGRAM_BOT_TOKEN: Optional[str] = os.getenv("TELEGRAM_BOT_TOKEN")
+    TELEGRAM_CHANNEL_ID: Optional[str] = os.getenv("TELEGRAM_CHANNEL_ID")
+    
     @classmethod
     def validate(cls) -> bool:
         """Validate that required configuration is present."""
