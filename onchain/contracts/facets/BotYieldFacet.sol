@@ -181,7 +181,7 @@ contract BotYieldFacet is IBotYield, ReentrancyGuard {
     /**
      * @notice Get protocol name from adapter
      */
-    function getProtocolName(address protocolAdapter) external view override returns (string memory) {
+    function getProtocolName(address protocolAdapter) external pure override returns (string memory) {
         return IProtocolAdapter(protocolAdapter).getProtocolName();
     }
 

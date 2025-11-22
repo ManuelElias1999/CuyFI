@@ -279,14 +279,6 @@ contract PendleAdapter is IProtocolAdapter {
         // Swap PT for SY
         IERC20(receiptToken).forceApprove(router, shares);
 
-        IPendleRouter.ApproxParams memory approx = IPendleRouter.ApproxParams({
-            guessMin: 0,
-            guessMax: type(uint256).max,
-            guessOffchain: 0,
-            maxIteration: 256,
-            eps: 1e14
-        });
-
         IPendleRouter.LimitOrderData memory limit = IPendleRouter.LimitOrderData({
             limitRouter: address(0),
             epsSkipMarket: 0,
