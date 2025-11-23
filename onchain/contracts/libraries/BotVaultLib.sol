@@ -102,6 +102,11 @@ library BotVaultLib {
         // ============ Oracles (Chainlink) ============
         mapping(address => ChainlinkOracleHelper.OracleInfo) assetOracles;
 
+        // ============ LayerZero OApp (for ratio broadcasts) ============
+        address lzEndpoint; // LayerZero endpoint address
+        mapping(uint32 => bytes32) lzPeers; // EID => peer address (for broadcasts)
+        address lzDelegate; // LayerZero delegate address
+
         // ============ Emergency ============
         bool paused;
     }

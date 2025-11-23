@@ -261,6 +261,12 @@ contract BotVaultCoreFacet is IBotVaultCore {
         return BotVaultLib.botVaultStorage().fee;
     }
 
+    // ============ Composer Management ============
+
+    function setComposer(address _composer) external onlyOwner {
+        BotVaultLib.botVaultStorage().composer = _composer;
+    }
+
     // ============ View Functions ============
 
     function getOwner() external view returns (address) {
