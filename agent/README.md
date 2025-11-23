@@ -12,31 +12,24 @@ A powerful LangChain-based AI agent with OpenAI integration, Web3 capabilities, 
 
 ### Available Tools
 
-1. **Web Search** 🔍
-   - Search the web for current information
-   - Uses DuckDuckGo API for search results
-   - Perfect for queries requiring up-to-date information
-
-2. **Calculator** 🧮
-   - Evaluate mathematical expressions safely
-   - Supports basic arithmetic operations
-   - Safe evaluation with input validation
-
-3. **Wallet Management** 💼
-   - **Get Balance**: Check ETH balance of any Ethereum address
+1. **Wallet Management** 💼
    - **Create Embedded Wallet**: Create Privy embedded wallets for users
-   - Supports backend wallet operations
+     - Requires Privy user ID (DID format)
+     - Creates Ethereum-compatible embedded wallets
+   - **Get Address & Balance**: Check ETH balance of any Ethereum address
+     - Works with backend wallet or any provided address
+     - Returns balance in ETH and Wei
+   - **Get USDT Balance**: Check USDT (Tether) balance
+     - Supports multiple networks (mainnet, polygon, arbitrum, optimism, base)
+     - Returns token balance with symbol and address information
 
-4. **DeFi Operations** 🌐
-   - **Supply to Aave**: Supply tokens to Aave V3 Pool on Polygon
-   - Automatic token approval handling
-   - Support for USDC, USDT, WETH, and other assets
-   - Transaction tracking with explorer links
-
-5. **Smart Wallet Operations** 🔐
-   - **Send ETH**: Prepare ETH transfers from Privy Smart Wallets
-   - Integration with Privy authentication system
-   - Secure transaction preparation
+2. **DeFi & Yield Generation** 🌐
+   - **Deposit to Vault**: Deposit assets to generate yield on Arbitrum
+     - Executes deposit function on ERC4626 vault contract
+     - Automatically handles token approvals
+     - Default vault: `0x4E5cA96091B5A5E17d3Aa2178f13ad678d3874B7` (Arbitrum)
+     - Default underlying token: USDT on Arbitrum
+     - Returns transaction hash and explorer link
 
 ### Telegram Bot Features
 - Interactive chat interface
@@ -94,6 +87,11 @@ AGENT_MAX_ITERATIONS=15
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
 TELEGRAM_CHANNEL_ID=your_channel_id_here  # Optional, for broadcasting
 
+# Required: Backend Wallet Configuration (for executing transactions)
+BACKEND_PRIVATE_KEY=your_backend_wallet_private_key_here
+INFURA_PROJECT_ID=your_infura_project_id_here
+NETWORK=arbitrum  # Options: mainnet, sepolia, polygon, polygon-amoy, arbitrum, optimism, base
+
 # Optional: Privy Configuration (for wallet operations)
 PRIVY_APP_ID=your_privy_app_id
 PRIVY_APP_SECRET=your_privy_app_secret
@@ -122,14 +120,17 @@ This will start an interactive chat where you can:
 
 **Example Session:**
 ```
-You: What is 25 * 47?
-Agent: 1175
+You: Check my wallet balance
+Agent: [Returns ETH balance of backend wallet]
 
-You: Search for the latest news about Ethereum
-Agent: [Performs web search and returns results]
+You: What's my USDT balance?
+Agent: [Returns USDT balance on the configured network]
 
-You: Check the balance of 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb
-Agent: [Returns balance information]
+You: Deposit 100 USDT to generate yield
+Agent: Your token was sent to vault, now we are working to generate Yield.
+
+You: Create an embedded wallet for user did:privy:abc123
+Agent: [Creates wallet and returns wallet information]
 ```
 
 ### Running the Telegram Bot
@@ -188,6 +189,8 @@ history = agent.get_chat_history()
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `OPENAI_API_KEY` | Your OpenAI API key | `sk-...` |
+| `BACKEND_PRIVATE_KEY` | Private key of backend wallet for executing transactions | `0x...` |
+| `INFURA_PROJECT_ID` | Infura project ID for RPC connections | `abc123...` |
 
 ### Optional Environment Variables
 
@@ -197,12 +200,49 @@ history = agent.get_chat_history()
 | `OPENAI_TEMPERATURE` | Model temperature (0-1) | `0.7` |
 | `AGENT_VERBOSE` | Enable verbose output | `False` |
 | `AGENT_MAX_ITERATIONS` | Max agent iterations | `15` |
+| `NETWORK` | Blockchain network to use | `sepolia` |
+| | Options: `mainnet`, `sepolia`, `polygon`, `polygon-amoy`, `arbitrum`, `optimism`, `base` | |
 | `TELEGRAM_BOT_TOKEN` | Telegram bot token | - |
 | `TELEGRAM_CHANNEL_ID` | Telegram channel ID | - |
 | `PRIVY_APP_ID` | Privy application ID | - |
 | `PRIVY_APP_SECRET` | Privy application secret | - |
 | `WEB3_RPC_URL` | Web3 RPC endpoint | - |
 | `CHAIN_ID` | Blockchain chain ID | `1` |
+
+## 🔐 Backend Wallet Setup
+
+### Getting an Infura Project ID
+
+The agent requires an Infura project ID to connect to blockchain networks:
+
+1. Visit [Infura](https://infura.io/) and create an account
+2. Create a new project in the dashboard
+3. Select the networks you want to use (e.g., Arbitrum, Ethereum, Polygon)
+4. Copy your Project ID
+5. Add it to your `.env` file as `INFURA_PROJECT_ID`
+
+### Setting Up Backend Wallet
+
+The backend wallet is used to execute transactions on behalf of users:
+
+1. **Create or Import a Wallet**
+   - Generate a new wallet or import an existing one
+   - **Important**: This wallet will execute transactions, so ensure it has sufficient funds for gas fees
+
+2. **Get the Private Key**
+   - Export the private key from your wallet (keep it secure!)
+   - Add it to your `.env` file as `BACKEND_PRIVATE_KEY`
+
+3. **Configure Network**
+   - Set `NETWORK` in your `.env` file to your target network
+   - Options: `mainnet`, `sepolia`, `polygon`, `polygon-amoy`, `arbitrum`, `optimism`, `base`
+   - Default: `sepolia` (testnet)
+
+**Security Warning**: 
+- Never commit your private key to version control
+- Use environment variables or secure secret management
+- Consider using a dedicated wallet with limited funds for the backend
+- Regularly monitor the wallet for unauthorized transactions
 
 ## 📱 Telegram Bot Setup
 
@@ -244,23 +284,42 @@ Check the ETH balance of any Ethereum address:
 ```
 You: Check balance of 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb
 ```
-
-#### Supply to Aave
-Supply tokens to Aave V3 Pool on Polygon:
+Or check the backend wallet balance:
 ```
-You: Supply 100 USDC to Aave
+You: What's my wallet balance?
+```
+
+#### Get USDT Balance
+Check USDT balance on supported networks:
+```
+You: Check USDT balance of 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb
+```
+
+**Supported Networks:**
+- Ethereum Mainnet
+- Polygon
+- Arbitrum
+- Optimism
+- Base
+- Sepolia (testnet)
+- Polygon Amoy (testnet)
+
+#### Deposit to Vault (Generate Yield)
+Deposit assets to the vault contract on Arbitrum to generate yield:
+```
+You: Deposit 100 USDT to generate yield
 ```
 
 The agent will:
+- Use the backend wallet to execute the transaction
 - Automatically approve token spending if needed
-- Execute the supply transaction
-- Return transaction hash and explorer link
+- Execute the deposit transaction on the vault
+- Return confirmation message
 
-**Supported Assets:**
-- USDC (6 decimals)
-- USDT (6 decimals)
-- WETH (18 decimals)
-- Other ERC-20 tokens
+**Vault Configuration:**
+- **Vault Address**: `0x4E5cA96091B5A5E17d3Aa2178f13ad678d3874B7` (Arbitrum)
+- **Underlying Token**: USDT on Arbitrum (`0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9`)
+- **Network**: Arbitrum One
 
 #### Create Embedded Wallet
 Create a Privy embedded wallet for a user:
@@ -268,13 +327,15 @@ Create a Privy embedded wallet for a user:
 You: Create an embedded wallet for user did:privy:abc123
 ```
 
-#### Send ETH from Smart Wallet
-Prepare ETH transfer from a Privy Smart Wallet:
-```
-You: Send 0.1 ETH from user did:privy:abc123 to 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb
-```
+### Backend Wallet
 
-**Note:** This prepares the transaction. Actual signing and sending requires Privy's transaction API or frontend SDK.
+The agent uses a backend wallet (configured via `BACKEND_PRIVATE_KEY`) to:
+- Execute blockchain transactions
+- Sign and send transactions automatically
+- Handle token approvals
+- Interact with smart contracts
+
+**Security Note:** Keep your `BACKEND_PRIVATE_KEY` secure and never commit it to version control. The backend wallet should have sufficient funds for gas fees.
 
 ## 📁 Project Structure
 
@@ -375,9 +436,10 @@ application.add_handler(CommandHandler("mycommand", self.my_command))
 
 4. **Web3 operations failing**
    - **Solution**: 
-     - Verify `WEB3_RPC_URL` is correct and accessible
-     - Check that `CHAIN_ID` matches your network
-     - Ensure wallet has sufficient balance for gas fees
+     - Verify `BACKEND_PRIVATE_KEY` and `INFURA_PROJECT_ID` are set correctly
+     - Check that `NETWORK` matches your intended blockchain network
+     - Ensure backend wallet has sufficient balance for gas fees
+     - Verify Infura project ID is valid and has access to the selected network
 
 5. **Privy operations failing**
    - **Solution**: 
