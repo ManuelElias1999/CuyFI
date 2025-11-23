@@ -1,66 +1,76 @@
-## Foundry
+# CuyFI Contracts Architecture
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+## Hub & Spoke Architecture
 
-Foundry consists of:
+### Hub (Arbitrum)
+The main vault deployment with all core functionality.
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+#### Core Contracts
+- **BotVaultDiamond.sol** - Diamond proxy contract (EIP-2535)
+- **VaultInit.sol** - Initialization contract for the diamond
 
-## Documentation
+#### Facets
+- **BotVaultCoreFacet.sol** - Core vault functionality (ERC4626)
+- **BotStrategyFacet.sol** - Strategy management and cross-chain deployments
+- **BotSwapFacet.sol** - Token swapping functionality
+- **BotYieldFacet.sol** - Yield farming functionality
+- **DiamondCutFacet.sol** - Diamond upgrade functionality
+- **DiamondLoupeFacet.sol** - Diamond inspection functionality
 
-https://book.getfoundry.sh/
+#### Cross-Chain
+- **BotVaultComposer.sol** - Handles cross-chain deposits with pending deposit pattern
+- **BotVaultShareOFT.sol** - LayerZero OFT Adapter for cross-chain shares (18 decimals)
+- **RatioBroadcaster.sol** - OApp for broadcasting share ratio to spoke oracles
 
-## Usage
+### Spoke Chains (Polygon, Optimism, etc.)
+Simplified deployments on other chains.
 
-### Build
+#### Spoke Contracts
+- **BotVaultSpoke.sol** - Simplified spoke vault for bot operations
+- **BotVaultShareOFT_Spoke.sol** - Spoke-side ShareOFT (18 decimals)
+- **CrossChainDepositHelper.sol** - User-facing helper for cross-chain deposits
 
-```shell
-$ forge build
-```
+#### Spoke Facets
+- **ShareOracleFacet.sol** - Caches share ratio from hub for instant, free queries
 
-### Test
+## Libraries
+- **BotVaultLib.sol** - Shared vault logic and storage
+- **ChainlinkOracleHelper.sol** - Price oracle helpers
 
-```shell
-$ forge test
-```
+## Adapters
+- **PendleAdapter.sol** - Pendle protocol integration
 
-### Format
+## Configuration
+- **ArbitrumHubConfig.sol** - Hub configuration
+- **PolygonSpokeConfig.sol** - Polygon spoke configuration
+- **OptimismConfig.sol** - Optimism spoke configuration
 
-```shell
-$ forge fmt
-```
+## Interfaces
+All interface definitions are in `/interfaces/`:
+- **IBotVaultCore.sol** - Core vault interface
+- **IBotStrategy.sol** - Strategy interface
+- **IBotSwap.sol** - Swap interface
+- **IBotYield.sol** - Yield interface
+- **IProtocolAdapter.sol** - Protocol adapter interface
+- **IDiamondCut.sol** - Diamond cut interface
+- **IDiamondLoupe.sol** - Diamond loupe interface
 
-### Gas Snapshots
+## Key Features
 
-```shell
-$ forge snapshot
-```
+### Pending Deposits Pattern
+The Composer uses a two-step deposit pattern:
+1. **Automatic**: If user provides enough ETH, shares are sent back automatically
+2. **Manual (Pending)**: If return trip fails (insufficient ETH), deposit is saved as "pending" and user can finalize later
 
-### Anvil
+This prevents fund loss while allowing flexible gas management.
 
-```shell
-$ anvil
-```
+### Decimal Handling
+- **Vault**: 6 decimals (matches USDT)
+- **ShareOFT**: 18 decimals (standard for cross-chain compatibility)
+- LayerZero OFT handles conversion automatically
 
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+### Security
+- ReentrancyGuard on all external functions
+- OFT approval system (only approved OFTs can deposit)
+- Slippage protection on all swaps and deposits
+- 7-day expiration on pending deposits
