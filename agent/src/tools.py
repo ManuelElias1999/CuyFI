@@ -132,14 +132,19 @@ def create_embedded_wallet(user_id: str, wallet_type: str = "ethereum") -> str:
         result = privy_client.create_embedded_wallet(user_id, wallet_type)
         
         if result:
-            wallet_address = result.get("address", "N/A")
             wallet_id = result.get("id", "N/A")
-            return f"Successfully created embedded wallet for user {user_id}. Wallet ID: {wallet_id}, Address: {wallet_address}"
+            wallet_type_ = result.get("linked_accounts")[1].get("type", "N/A")
+            wallet_address = result.get("linked_accounts")[1].get("address", "N/A")
+            
+            print('=> wallet_address:', wallet_address)
+            return f"Successfully created embedded wallet for user {user_id}. Wallet ID: {wallet_id}, Type: {wallet_type_}, Address: {wallet_address}"
         else:
             return f"Failed to create embedded wallet for user {user_id}"
     except ValueError as e:
+        print('=> Error:', e)
         return f"Error: {str(e)}"
     except Exception as e:
+        print('=> Error:', e)
         return f"Error creating embedded wallet: {str(e)}"
 
 
@@ -338,42 +343,42 @@ def get_tools() -> list[BaseTool]:
         A list of LangChain tools
     """
     tools = [
-        StructuredTool.from_function(
-            func=web_search,
-            name="web_search",
-            description="Search the web for information about a given query. Use this when you need current information or facts that you don't have in your training data.",
-            args_schema=WebSearchInput,
-        ),
-        StructuredTool.from_function(
-            func=calculator,
-            name="calculator",
-            description="Evaluate a mathematical expression. Use this for any mathematical calculations.",
-            args_schema=CalculatorInput,
-        ),
+        # StructuredTool.from_function(
+        #     func=web_search,
+        #     name="web_search",
+        #     description="Search the web for information about a given query. Use this when you need current information or facts that you don't have in your training data.",
+        #     args_schema=WebSearchInput,
+        # ),
+        # StructuredTool.from_function(
+        #     func=calculator,
+        #     name="calculator",
+        #     description="Evaluate a mathematical expression. Use this for any mathematical calculations.",
+        #     args_schema=CalculatorInput,
+        # ),
         StructuredTool.from_function(
             func=create_embedded_wallet,
-            name="create_embedded_wallet",
+            name="create_wallet",
             description="Create an embedded wallet for a Privy user. Use this when a user needs a new embedded wallet created. Requires a Privy user ID.",
             args_schema=CreateEmbeddedWalletInput,
         ),
-        StructuredTool.from_function(
-            func=send_eth_from_smart_wallet,
-            name="send_eth_from_smart_wallet",
-            description="Send ETH from a user's Smart Wallet to another address. Use this when a user wants to transfer ETH from their Privy smart wallet. Requires the user's Privy user ID (DID), destination address, and amount in ETH. Note: This prepares the transaction but requires Privy's transaction API or frontend SDK to sign and send it.",
-            args_schema=SendEthFromSmartWalletInput,
-        ),
+        # StructuredTool.from_function(
+        #     func=send_eth_from_smart_wallet,
+        #     name="send_eth_from_smart_wallet",
+        #     description="Send ETH from a user's Smart Wallet to another address. Use this when a user wants to transfer ETH from their Privy smart wallet. Requires the user's Privy user ID (DID), destination address, and amount in ETH. Note: This prepares the transaction but requires Privy's transaction API or frontend SDK to sign and send it.",
+        #     args_schema=SendEthFromSmartWalletInput,
+        # ),
         StructuredTool.from_function(
             func=get_balance,
-            name="get_balance",
-            description="Get the ETH balance of an Ethereum address using the wallet manager. Use this when you need to check the balance of a wallet address. If no address is provided, it will check the backend wallet balance.",
+            name="get_address",
+            description="Get address and balance of wallet. Use this when you need to check the balance of a wallet address. If no address is provided, it will check the backend wallet balance.",
             args_schema=GetBalanceInput,
         ),
-        StructuredTool.from_function(
-            func=supply_to_aave,
-            name="supply_to_aave",
-            description="Supply tokens to Aave V3 Pool on Polygon. This function automatically approves token spending if needed. Use this when a user wants to supply assets (like USDC, USDT, WETH) to Aave to earn interest. Requires the asset address, amount to supply, and optionally the pool address, recipient address, referral code, and token decimals. Default pool address is the Polygon mainnet Aave V3 Pool (0x794a61358D6845594F94dc1DB02A252b5b4814aD).",
-            args_schema=SupplyToAaveInput,
-        ),
+        # StructuredTool.from_function(
+        #     func=supply_to_aave,
+        #     name="supply_to_aave",
+        #     description="Supply tokens to Aave V3 Pool on Polygon. This function automatically approves token spending if needed. Use this when a user wants to supply assets (like USDC, USDT, WETH) to Aave to earn interest. Requires the asset address, amount to supply, and optionally the pool address, recipient address, referral code, and token decimals. Default pool address is the Polygon mainnet Aave V3 Pool (0x794a61358D6845594F94dc1DB02A252b5b4814aD).",
+        #     args_schema=SupplyToAaveInput,
+        # ),
     ]
     
     return tools
