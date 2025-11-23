@@ -44,6 +44,14 @@ class GetBalanceInput(BaseModel):
     )
 
 
+class GetUsdtBalanceInput(BaseModel):
+    """Input schema for get USDT balance tool."""
+    address: Optional[str] = Field(
+        default=None,
+        description="The Ethereum address to check USDT balance for. If not provided, uses the backend wallet address."
+    )
+
+
 class SupplyToAaveInput(BaseModel):
     """Input schema for supply to Aave tool."""
     asset_address: str = Field(description="The address of the token/asset to supply to Aave (e.g., USDC, USDT, WETH)")
@@ -263,7 +271,6 @@ def get_balance(address: Optional[str] = None) -> str:
         A string containing the balance information in ETH and Wei
     """
     try:
-        print("=> start: ok")
         wallet_manager = create_wallet_from_env()
         print("=> wallet_manager:", wallet_manager)
         balance_info = wallet_manager.get_balance(address)
@@ -279,6 +286,35 @@ def get_balance(address: Optional[str] = None) -> str:
         return f"Error: {str(e)}"
     except Exception as e:
         return f"Error getting balance: {str(e)}"
+
+
+def get_usdt_balance(address: Optional[str] = None) -> str:
+    """
+    Get the USDT balance of an Ethereum address using the wallet manager.
+    
+    Args:
+        address: The Ethereum address to check USDT balance for. If not provided, uses the backend wallet address.
+        
+    Returns:
+        A string containing the USDT balance information
+    """
+    try:
+        wallet_manager = create_wallet_from_env()
+        balance_info = wallet_manager.get_usdt_balance(address)
+        
+        return (
+            f"USDT Balance Information:\n"
+            f"Address: {balance_info['address']}\n"
+            f"Token: {balance_info['token_symbol']}\n"
+            f"Token Address: {balance_info['token_address']}\n"
+            f"Balance: {balance_info['balance_tokens']} {balance_info['token_symbol']}\n"
+            f"Balance (raw): {balance_info['balance_raw']}\n"
+            f"Network: {balance_info['network']}"
+        )
+    except ValueError as e:
+        return f"Error: {str(e)}"
+    except Exception as e:
+        return f"Error getting USDT balance: {str(e)}"
 
 
 def supply_to_aave(
@@ -372,6 +408,12 @@ def get_tools() -> list[BaseTool]:
             name="get_address",
             description="Get address and balance of wallet. Use this when you need to check the balance of a wallet address. If no address is provided, it will check the backend wallet balance.",
             args_schema=GetBalanceInput,
+        ),
+        StructuredTool.from_function(
+            func=get_usdt_balance,
+            name="get_usdt_balance",
+            description="Get the USDT (Tether) balance of an Ethereum address. Use this when you need to check the USDT balance of a wallet address. If no address is provided, it will check the backend wallet USDT balance. Works on mainnet, polygon, arbitrum, optimism, base, and other supported networks.",
+            args_schema=GetUsdtBalanceInput,
         ),
         # StructuredTool.from_function(
         #     func=supply_to_aave,

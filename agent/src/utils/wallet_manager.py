@@ -93,6 +93,110 @@ class WalletManager:
             print(f"Error getting user: {str(e)}")
             return None
 
+    def get_token_balance(
+        self,
+        token_address: str,
+        address: Optional[str] = None,
+        decimals: int = 18
+    ) -> Dict[str, Any]:
+        """
+        Obtener balance de un token ERC-20
+
+        Args:
+            token_address: Dirección del contrato del token
+            address: Dirección a consultar (si None, usa la del backend)
+            decimals: Decimales del token (18 por defecto)
+
+        Returns:
+            Dict con balance del token
+        """
+        try:
+            check_address = address or self.address
+            check_address = Web3.to_checksum_address(check_address)
+            token_address = Web3.to_checksum_address(token_address)
+
+            # ABI mínimo para balanceOf y symbol
+            erc20_abi = [
+                {
+                    'constant': True,
+                    'inputs': [{'name': '_owner', 'type': 'address'}],
+                    'name': 'balanceOf',
+                    'outputs': [{'name': 'balance', 'type': 'uint256'}],
+                    'type': 'function'
+                },
+                {
+                    'constant': True,
+                    'inputs': [],
+                    'name': 'symbol',
+                    'outputs': [{'name': '', 'type': 'string'}],
+                    'type': 'function'
+                }
+            ]
+
+            # Crear contrato
+            contract = self.w3.eth.contract(
+                address=token_address,
+                abi=erc20_abi
+            )
+
+            # Obtener balance
+            balance_raw = contract.functions.balanceOf(check_address).call()
+            balance_tokens = balance_raw / (10 ** decimals)
+
+            # Obtener símbolo
+            try:
+                symbol = contract.functions.symbol().call()
+            except Exception:
+                symbol = 'TOKEN'
+
+            return {
+                'address': check_address,
+                'token_address': token_address,
+                'token_symbol': symbol,
+                'balance_raw': str(balance_raw),
+                'balance_tokens': float(balance_tokens),
+                'decimals': decimals,
+                'network': self.network
+            }
+        except Exception as e:
+            print(f"Error getting token balance: {str(e)}")
+            raise
+
+    def get_usdt_balance(self, address: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Obtener balance de USDT
+
+        Args:
+            address: Dirección a consultar (si None, usa la del backend)
+
+        Returns:
+            Dict con balance de USDT
+        """
+        # Direcciones de USDT por red
+        usdt_addresses = {
+            'mainnet': '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+            'sepolia': '0xaA8E23Fb1079EA71e0a56F48a2aA51851D8433D0',  # Testnet USDT
+            'polygon': '0xc2132D05D31c914a87C6611C10748AEb04B58e8F',
+            'polygon-amoy': '0x4c4cE8b3B0F0B5B5B5B5B5B5B5B5B5B5B5B5B5B5',  # Testnet, may need actual address
+            'arbitrum': '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
+            'optimism': '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58',
+            'base': '0xfde4C96c8593536E31F229EA8f37b2ADa2699eF2',  # Base USDT
+        }
+
+        usdt_address = usdt_addresses.get(self.network)
+        if not usdt_address:
+            raise ValueError(
+                f"USDT no está disponible en la red {self.network}. "
+                f"Redes soportadas: {list(usdt_addresses.keys())}"
+            )
+
+        # USDT tiene 6 decimales
+        return self.get_token_balance(
+            token_address=usdt_address,
+            address=address,
+            decimals=6
+        )
+
     def send_eth(
         self,
         to_address: str,
