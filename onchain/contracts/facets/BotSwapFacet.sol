@@ -49,14 +49,17 @@ contract BotSwapFacet is IBotSwap, ReentrancyGuard {
         uint256 tokenInBalanceBefore = IERC20(params.tokenIn).balanceOf(address(this));
         uint256 tokenOutBalanceBefore = IERC20(params.tokenOut).balanceOf(address(this));
 
-        // Approve target DEX
-        IERC20(params.tokenIn).forceApprove(params.targetContract, params.amountIn);
+        // Determine approval target (some DEXs like Paraswap use separate approval contracts)
+        address approvalTarget = params.approvalTarget == address(0) ? params.targetContract : params.approvalTarget;
+
+        // Approve target DEX or approval proxy
+        IERC20(params.tokenIn).forceApprove(approvalTarget, params.amountIn);
 
         // Execute swap
         (bool success, bytes memory result) = params.targetContract.call(params.swapCallData);
 
         // Reset approval
-        IERC20(params.tokenIn).forceApprove(params.targetContract, 0);
+        IERC20(params.tokenIn).forceApprove(approvalTarget, 0);
 
         if (!success) {
             revert SwapFailed(result);
@@ -157,11 +160,14 @@ contract BotSwapFacet is IBotSwap, ReentrancyGuard {
         uint256 tokenInBalanceBefore = IERC20(params.tokenIn).balanceOf(address(this));
         uint256 tokenOutBalanceBefore = IERC20(params.tokenOut).balanceOf(address(this));
 
-        IERC20(params.tokenIn).forceApprove(params.targetContract, params.amountIn);
+        // Determine approval target (some DEXs like Paraswap use separate approval contracts)
+        address approvalTarget = params.approvalTarget == address(0) ? params.targetContract : params.approvalTarget;
+
+        IERC20(params.tokenIn).forceApprove(approvalTarget, params.amountIn);
 
         (bool success, bytes memory result) = params.targetContract.call(params.swapCallData);
 
-        IERC20(params.tokenIn).forceApprove(params.targetContract, 0);
+        IERC20(params.tokenIn).forceApprove(approvalTarget, 0);
 
         if (!success) {
             revert SwapFailed(result);
@@ -188,8 +194,14 @@ contract BotSwapFacet is IBotSwap, ReentrancyGuard {
     function _validateSwapParams(SwapParams calldata params) private view {
         BotVaultLib.BotVaultStorage storage ds = BotVaultLib.botVaultStorage();
 
+        // Validate target contract is approved
         if (!ds.approvedDexs[params.targetContract]) {
             revert InvalidSwapTarget(params.targetContract);
+        }
+
+        // If using separate approval target, validate it's also approved
+        if (params.approvalTarget != address(0) && !ds.approvedDexs[params.approvalTarget]) {
+            revert InvalidSwapTarget(params.approvalTarget);
         }
 
         if (params.tokenIn == params.tokenOut) {

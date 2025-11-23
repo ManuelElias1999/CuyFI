@@ -9,12 +9,13 @@ interface IBotSwap {
     // ============ Structs ============
 
     struct SwapParams {
-        address targetContract; // DEX aggregator address (Uniswap, 1inch, etc)
+        address targetContract; // DEX aggregator address to call (Router, etc)
         address tokenIn;        // Token to sell
         address tokenOut;       // Token to buy
         uint256 amountIn;       // Exact amount to sell
         uint256 minAmountOut;   // Min amount to receive (slippage protection)
         bytes swapCallData;     // Complete calldata for the swap
+        address approvalTarget; // Optional: different contract for token approval (e.g., Paraswap TokenTransferProxy). If address(0), uses targetContract
     }
 
     // ============ Events ============
