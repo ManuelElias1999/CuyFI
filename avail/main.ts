@@ -15,19 +15,19 @@ type NexusNetwork = 'mainnet' | 'testnet';
 
 async function main() {
   // ---------------------------------------------------------
-  // 1. CONFIGURACIÓN DEL PROVEEDOR (MOCK DE WALLET EN BACKEND)
+  // 1. PROVIDER CONFIGURATION (MOCK WALLET IN BACKEND)
   // ---------------------------------------------------------
   const privateKey = process.env.PRIVATE_KEY as `0x${string}`;
   const account = privateKeyToAccount(privateKey);
 
-  // Creamos un cliente de Viem que actuará como nuestra "MetaMask" en el servidor
+  // Create a Viem client that will act as our "MetaMask" on the server
   const client = createWalletClient({
     account,
     chain: mainnet,
-    transport: http() // Usa RPC público o tu propio endpoint de Infura/Alchemy
+    transport: http() // Use public RPC or your own Infura/Alchemy endpoint
   });
 
-  // Adaptador para que el SDK crea que está en un navegador (EIP-1193)
+  // Adapter so the SDK thinks it's in a browser (EIP-1193)
   const backendProvider = {
     request: async (args: any) => {
       if (args.method === 'eth_requestAccounts' || args.method === 'eth_accounts') {
@@ -45,28 +45,28 @@ async function main() {
     chainId: `0x${mainnet.id.toString(16)}`
   };
 
-  console.log(`🤖 Iniciando Nexus SDK con wallet: ${account.address}`);
+  console.log(`🤖 Starting Nexus SDK with wallet: ${account.address}`);
 
   // ---------------------------------------------------------
-  // 2. INICIALIZACIÓN DEL SDK
+  // 2. SDK INITIALIZATION
   // ---------------------------------------------------------
   const sdk = new NexusSDK({
     network: 'mainnet' as NexusNetwork
   });
 
-  // ¡Paso Crítico! Conectar el proveedor al SDK
+  // Critical Step! Connect the provider to the SDK
   await sdk.initialize(backendProvider as any);
 
   // ---------------------------------------------------------
-  // 3. DATOS PARA EJECUCIÓN EN ARBITRUM (AAVE V3 + USDT)
+  // 3. DATA FOR EXECUTION ON ARBITRUM (AAVE V3 + USDT)
   // ---------------------------------------------------------
   const AAVE_POOL_ARB = "0x794a61358D6845594F94dc1DB02A252b5b4814aD";
   const USDT_ARB = "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9";
   
-  // Cantidad: 10 USDT (USDT tiene 6 decimales)
+  // Amount: 10 USDT (USDT has 6 decimals)
   const amountToBridge = parseUnits('10', 6);
 
-  // ABI para la función 'supply' del contrato de Aave
+  // ABI for the 'supply' function of the Aave contract
   const supplyAbi = [{
     inputs: [
       { name: 'asset', type: 'address' },
@@ -81,33 +81,33 @@ async function main() {
   }] as const;
 
   // ---------------------------------------------------------
-  // 4. EJECUCIÓN (BRIDGE AND EXECUTE)
+  // 4. EXECUTION (BRIDGE AND EXECUTE)
   // ---------------------------------------------------------
   try {
-    console.log("🚀 Enviando intención Bridge & Execute...");
+    console.log("🚀 Sending Bridge & Execute intent...");
 
     const tx = await sdk.bridgeAndExecute({
-      // Origen
-      token: 'USDT',         // Token a tomar de Ethereum Mainnet
-      amount: amountToBridge.toString(), // Debe ser bigint o string
-      sourceChains: [1],     // IDs de cadenas donde tienes fondos (1 = Mainnet)
+      // Source
+      token: 'USDT',         // Token to take from Ethereum Mainnet
+      amount: amountToBridge.toString(), // Must be bigint or string
+      sourceChains: [1],     // Chain IDs where you have funds (1 = Mainnet)
       
-      // Destino
+      // Destination
       toChainId: 42161,      // Arbitrum One
       
-      // Ejecución (Payload)
+      // Execution (Payload)
       execute: {
-        contractAddress: AAVE_POOL_ARB,   // Contrato destino
-        contractAbi: supplyAbi,           // ABI del contrato
-        functionName: 'supply',           // Nombre de la función
+        contractAddress: AAVE_POOL_ARB,   // Destination contract
+        contractAbi: supplyAbi,           // Contract ABI
+        functionName: 'supply',           // Function name
         buildFunctionParams: (_token: string, _amount: string, _chainId: number, userAddress: `0x${string}`) => {
           return {
             functionParams: [USDT_ARB, amountToBridge, userAddress, 0]
           };
         },
-        value: '0',          // Valor en ETH a enviar (0 para ERC20)
+        value: '0',          // ETH value to send (0 for ERC20)
         
-        // Opcional: Aprobación automática en destino si fuera necesaria
+        // Optional: Automatic approval at destination if needed
         tokenApproval: {
             token: 'USDT',
             amount: amountToBridge.toString()
@@ -115,12 +115,12 @@ async function main() {
       }
     });
 
-    console.log(`✅ Transacción enviada con éxito!`);
-    console.log(`Hash de bridge: ${tx.bridgeTransactionHash}`);
-    console.log(`Hash de ejecución: ${tx.executeTransactionHash}`);
+    console.log(`✅ Transaction sent successfully!`);
+    console.log(`Bridge hash: ${tx.bridgeTransactionHash}`);
+    console.log(`Execution hash: ${tx.executeTransactionHash}`);
     
   } catch (error) {
-    console.error("❌ Error ejecutando el Bridge:", error);
+    console.error("❌ Error executing the Bridge:", error);
   }
 }
 
