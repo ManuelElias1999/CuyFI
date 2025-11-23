@@ -8,41 +8,20 @@ import {OApp, MessagingFee, Origin} from "@layerzerolabs/oapp-evm/contracts/oapp
 
 /**
  * @title BotVaultSpokeOApp
- * @notice Spoke vault with LayerZero OApp for receiving ratio updates from Hub
- * @dev Extends OApp to receive messages + manages USDT for yield farming
- *
- * Features:
- * - Receives USDT from Hub via LayerZero OFT
- * - Receives ratio updates from Hub via LayerZero messages
- * - Agent can execute yield strategies (Aave, Pendle, etc.)
- * - Stores latest share/asset ratio from Hub
+ * @notice Spoke vault for managing USDT and executing yield strategies
+ * @dev Receives cross-chain messages via LayerZero OApp
  */
 contract BotVaultSpokeOApp is OApp {
     using SafeERC20 for IERC20;
 
-    // ============ Immutables ============
-
-    /// @notice The asset this spoke manages (USDT)
     address public immutable ASSET;
-
-    // ============ State ============
-
-    /// @notice Agent address (bot) authorized to manage funds
     address public agent;
 
-    /// @notice Approved protocols for yield farming
     mapping(address => bool) public approvedProtocols;
-
-    /// @notice Approved DEXs for swaps
     mapping(address => bool) public approvedDexs;
 
-    /// @notice Latest share ratio from Hub (shares per asset, scaled by 1e18)
     uint256 public latestRatio;
-
-    /// @notice Timestamp of last ratio update
     uint256 public lastRatioUpdate;
-
-    // ============ Events ============
 
     event AgentUpdated(address indexed oldAgent, address indexed newAgent);
     event ProtocolApproved(address indexed protocol, bool approved);
@@ -154,12 +133,6 @@ contract BotVaultSpokeOApp is OApp {
         emit Withdrawn(to, amount);
     }
 
-    // ============ LayerZero OApp Override ============
-
-    /**
-     * @notice Receive ratio updates from Hub
-     * @dev Called by LayerZero endpoint when message arrives
-     */
     function _lzReceive(
         Origin calldata _origin,
         bytes32 /*_guid*/,
@@ -167,17 +140,11 @@ contract BotVaultSpokeOApp is OApp {
         address /*_executor*/,
         bytes calldata /*_extraData*/
     ) internal override {
-        // Decode ratio from message
         uint256 ratio = abi.decode(_message, (uint256));
-
-        // Update stored ratio
         latestRatio = ratio;
         lastRatioUpdate = block.timestamp;
-
         emit RatioUpdated(ratio, block.timestamp);
     }
-
-    // ============ View Functions ============
 
     function balance() external view returns (uint256) {
         return IERC20(ASSET).balanceOf(address(this));
@@ -191,9 +158,6 @@ contract BotVaultSpokeOApp is OApp {
         return approvedDexs[dex];
     }
 
-    /**
-     * @notice Get latest ratio and when it was updated
-     */
     function getRatio() external view returns (uint256 ratio, uint256 timestamp) {
         return (latestRatio, lastRatioUpdate);
     }
