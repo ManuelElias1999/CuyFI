@@ -12,6 +12,7 @@ import {IOFT} from "@layerzerolabs/oft-evm/contracts/interfaces/IOFT.sol";
 
 interface IBotVaultComposer {
     function depositAndSend(
+        address oftAdapter,
         uint256 amount,
         SendParam memory sendParam,
         address refundAddress
@@ -71,18 +72,20 @@ contract BotStrategyFacet is IBotStrategy, ReentrancyGuard {
         // Get composer
         IBotVaultComposer composer = IBotVaultComposer(ds.composer);
 
-        // Approve composer to spend USDT OFT
-        IERC20(oftAddress).forceApprove(address(composer), amount);
+        // Approve composer to spend USDT normal (not OFT!)
+        // Composer will transferFrom and convert to OFT
+        IERC20(ds.asset).forceApprove(address(composer), amount);
 
-        // Deploy via composer
+        // Deploy via composer - pass OFT adapter address
         composer.depositAndSend{value: msg.value}(
+            oftAddress, // OFT adapter to use for cross-chain send
             amount,
             sendParam,
             msg.sender // refund address
         );
 
         // Reset approval
-        IERC20(oftAddress).forceApprove(address(composer), 0);
+        IERC20(ds.asset).forceApprove(address(composer), 0);
 
         // Record deployment (simplified tracking, no oracles)
         address dstVault = _bytes32ToAddress(sendParam.to);
@@ -203,17 +206,18 @@ contract BotStrategyFacet is IBotStrategy, ReentrancyGuard {
     }
 
     /**
-     * @notice Get the USDT OFT adapter address for a given chain
-     * @param dstEid Destination chain endpoint ID
-     * @return OFT adapter address for that chain
+     * @notice Get the USDT OFT adapter address on Arbitrum (source chain)
+     * @dev Hub is on Arbitrum, so always return Arbitrum OFT regardless of destination
+     * @param dstEid Destination chain endpoint ID (for validation only)
+     * @return OFT adapter address on Arbitrum
      */
     function _getOFTForChain(uint32 dstEid) internal pure returns (address) {
-        // Hardcoded OFT addresses for each chain (checksummed)
-        if (dstEid == 30109) return 0x6BA10300f0DC58B7a1e4c0e41f5daBb7D7829e13; // Polygon
-        if (dstEid == 30101) return 0x6C96dE32CEa08842dcc4058c14d3aaAD7Fa41dee; // Ethereum
-        if (dstEid == 30111) return 0xF03b4d9AC1D5d1E7c4cEf54C2A313b9fe051A0aD; // Optimism
-        if (dstEid == 30110) return 0x14E4A1B13bf7F943c8ff7C51fb60FA964A298D92; // Arbitrum
+        // Validate destination is supported
+        if (dstEid != 30109 && dstEid != 30101 && dstEid != 30111) {
+            revert("Invalid destination EID");
+        }
 
-        revert("Invalid destination EID");
+        // Hub is on Arbitrum (30110), so always return Arbitrum USDT OFT
+        return 0x14E4A1B13bf7F943c8ff7C51fb60FA964A298D92; // Arbitrum USDT OFT
     }
 }

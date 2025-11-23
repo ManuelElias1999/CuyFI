@@ -346,6 +346,7 @@ contract BotVaultComposer is ReentrancyGuard {
      *      Uses ASSET (USDT) from vault storage - no need to pass token address
      */
     function depositAndSend(
+        address oftAdapter,
         uint256 amount,
         SendParam memory sendParam,
         address refundAddress
@@ -353,25 +354,21 @@ contract BotVaultComposer is ReentrancyGuard {
         // Only vault can call (via BotStrategyFacet)
         if (msg.sender != address(VAULT)) revert OnlySelf(msg.sender);
 
-        // Get the USDT OFT for destination chain from vault storage
-        // BotStrategyFacet already determined the correct OFT based on dstEid
-        address usdtOFT = ASSET;
+        // Transfer USDT normal from vault to this contract
+        IERC20(ASSET).safeTransferFrom(msg.sender, address(this), amount);
 
-        // Transfer USDT from vault to this contract
-        IERC20(usdtOFT).safeTransferFrom(msg.sender, address(this), amount);
+        // Approve OFT adapter to spend USDT normal
+        IERC20(ASSET).forceApprove(oftAdapter, amount);
 
-        // Approve OFT adapter
-        IERC20(usdtOFT).forceApprove(usdtOFT, amount);
-
-        // Send via LayerZero OFT
-        IOFT(usdtOFT).send{value: msg.value}(
+        // Send via LayerZero OFT adapter
+        IOFT(oftAdapter).send{value: msg.value}(
             sendParam,
             MessagingFee(msg.value, 0),
             refundAddress
         );
 
         // Reset approval
-        IERC20(usdtOFT).forceApprove(usdtOFT, 0);
+        IERC20(ASSET).forceApprove(oftAdapter, 0);
     }
 
     // ============ Quote Function ============
