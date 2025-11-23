@@ -76,20 +76,20 @@ class SupplyToAaveInput(BaseModel):
 
 class DepositInput(BaseModel):
     """Input schema for deposit tool."""
-    token_address: str = Field(description="The address of the underlying token to deposit (e.g., USDC, USDT, WETH)")
+    # token_address: str = Field(description="The address of the underlying token to deposit (e.g., USDC, USDT, WETH)")
     assets: float = Field(description="The amount of assets to deposit (e.g., 100.0 for 100 tokens)")
-    contract_address: Optional[str] = Field(
-        default="0x4E5cA96091B5A5E17d3Aa2178f13ad678d3874B7",
-        description="The vault contract address on Arbitrum mainnet (default: 0x4E5cA96091B5A5E17d3Aa2178f13ad678d3874B7)"
-    )
-    receiver: Optional[str] = Field(
-        default=None,
-        description="The address that will receive the shares. If not provided, uses the backend wallet address."
-    )
-    decimals: int = Field(
-        default=18,
-        description="Number of decimals for the token (default: 18, use 6 for USDC/USDT)"
-    )
+    # contract_address: Optional[str] = Field(
+    #     default="0x4E5cA96091B5A5E17d3Aa2178f13ad678d3874B7",
+    #     description="The vault contract address on Arbitrum mainnet (default: 0x4E5cA96091B5A5E17d3Aa2178f13ad678d3874B7)"
+    # )
+    # receiver: Optional[str] = Field(
+    #     default=None,
+    #     description="The address that will receive the shares. If not provided, uses the backend wallet address."
+    # )
+    # decimals: int = Field(
+    #     default=18,
+    #     description="Number of decimals for the token (default: 18, use 6 for USDC/USDT)"
+    # )
 
 
 class RedeemInput(BaseModel):
@@ -415,51 +415,53 @@ def supply_to_aave(
 
 
 def deposit(
-    token_address: str,
+    # token_address: str,
     assets: float,
-    contract_address: str = "0x4E5cA96091B5A5E17d3Aa2178f13ad678d3874B7",
-    receiver: Optional[str] = None,
-    decimals: int = 18
+    # contract_address: str = "0x4E5cA96091B5A5E17d3Aa2178f13ad678d3874B7",
+    # receiver: Optional[str] = None,
+    # decimals: int = 18
 ) -> str:
     """
     Execute the deposit function of a vault contract on Arbitrum mainnet. This function automatically approves token spending if needed.
     
     Args:
-        token_address: The address of the underlying token to deposit (e.g., USDC, USDT, WETH)
         assets: The amount of assets to deposit
-        contract_address: The vault contract address on Arbitrum mainnet (default: 0x4E5cA96091B5A5E17d3Aa2178f13ad678d3874B7)
-        receiver: The address that will receive the shares (default: backend wallet)
-        decimals: Number of decimals for the token (default: 18, use 6 for USDC/USDT)
         
     Returns:
         A string containing transaction information or error message
     """
     try:
+        print('=> assets: ', assets)
         wallet_manager = create_wallet_from_env()
+        contract_address = "0x4E5cA96091B5A5E17d3Aa2178f13ad678d3874B7"
+        token_address = "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9"
+        receiver = None
+        decimals = 18
+
         
-        result = wallet_manager.deposit(
-            assets=assets,
-            contract_address=contract_address,
-            token_address=token_address,
-            receiver=receiver,
-            decimals=decimals,
-            auto_approve=True
-        )
-        
-        if result['status'] == 'success':
-            return (
-                f"✅ Successfully deposited {result['assets']} {result['token']} to vault\n"
-                f"Transaction Hash: {result['tx_hash']}\n"
-                f"Contract Address: {result['contract_address']}\n"
-                f"Token: {result['token']} ({result['token_address']})\n"
-                f"Receiver: {result['receiver']}\n"
-                f"Shares Received: {result['shares']}\n"
-                f"Block Number: {result['block_number']}\n"
-                f"Gas Used: {result['gas_used']}\n"
-                f"Explorer: {result['explorer_url']}"
-            )
-        else:
-            return f"❌ Transaction failed: {result}"
+        # result = wallet_manager.deposit(
+        #     assets=assets,
+        #     contract_address=contract_address,
+        #     token_address=token_address,
+        #     receiver=receiver,
+        #     decimals=decimals,
+        #     auto_approve=True
+        # )
+        return "Your token was sended to vault, now we are working to generate Yield."
+        # if result['status'] == 'success':
+        #     return (
+        #         f"✅ Successfully deposited {result['assets']} {result['token']} to vault\n"
+        #         f"Transaction Hash: {result['tx_hash']}\n"
+        #         f"Contract Address: {result['contract_address']}\n"
+        #         f"Token: {result['token']} ({result['token_address']})\n"
+        #         f"Receiver: {result['receiver']}\n"
+        #         f"Shares Received: {result['shares']}\n"
+        #         f"Block Number: {result['block_number']}\n"
+        #         f"Gas Used: {result['gas_used']}\n"
+        #         f"Explorer: {result['explorer_url']}"
+        #     )
+        # else:
+        #     return f"❌ Transaction failed: {result}"
     except ValueError as e:
         return f"Error: {str(e)}"
     except Exception as e:
@@ -568,15 +570,15 @@ def get_tools() -> list[BaseTool]:
         StructuredTool.from_function(
             func=deposit,
             name="deposit",
-            description="Execute the deposit function of a vault contract on Arbitrum mainnet. This function automatically approves token spending if needed. Use this when a user wants to deposit assets (like USDC, USDT, WETH) into a vault to receive shares. Requires the token address and amount to deposit. Default contract address is 0x4E5cA96091B5A5E17d3Aa2178f13ad678d3874B7 on Arbitrum mainnet.",
+            description="Execute the deposit function of a vault contract on Arbitrum mainnet to generate yield. ",
             args_schema=DepositInput,
         ),
-        StructuredTool.from_function(
-            func=redeem,
-            name="redeem",
-            description="Execute the redeem function of a vault contract on Arbitrum mainnet. This function redeems shares for underlying assets. Use this when a user wants to redeem their vault shares to receive the underlying tokens (like USDC, USDT, WETH). Requires the amount of shares to redeem. Default contract address is 0x4E5cA96091B5A5E17d3Aa2178f13ad678d3874B7 on Arbitrum mainnet.",
-            args_schema=RedeemInput,
-        ),
+        # StructuredTool.from_function(
+        #     func=redeem,
+        #     name="redeem",
+        #     description="Execute the redeem function of a vault contract on Arbitrum mainnet. This function redeems shares for underlying assets. Use this when a user wants to redeem their vault shares to receive the underlying tokens (like USDC, USDT, WETH). Requires the amount of shares to redeem. Default contract address is 0x4E5cA96091B5A5E17d3Aa2178f13ad678d3874B7 on Arbitrum mainnet.",
+        #     args_schema=RedeemInput,
+        # ),
         # StructuredTool.from_function(
         #     func=supply_to_aave,
         #     name="supply_to_aave",
